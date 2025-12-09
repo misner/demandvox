@@ -30,7 +30,7 @@ body {
 /* Sidebar: icon above label, narrow column */
 .sidebar {
   position:fixed; inset-block:0; inset-inline-start:0;
-  width: var();
+  width: var(--sidebar-width);
   background-color: var(--bg-sidebar);
   border-inline-end: 1px solid var(--border-subtle);
   padding: 20px 0 16px;
