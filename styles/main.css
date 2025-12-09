@@ -1,5 +1,5 @@
 :root {
-  --sidebar-width: 70px;          /* narrow vertical rail */
+  --sidebar-width: 72px;          /* narrow vertical rail */
   --bg-body: #f6faf7;
   --bg-sidebar: #f3f5f2;
   --bg-canvas: #ffffff;
@@ -19,7 +19,7 @@ body {
   min-height:100vh;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", sans-serif;
   font-size: 16px;
-  line-height: 1.5;
+  line-height: 1.1;
   background-color: var(--bg-body);
   color: var(--text-main);
   display:flex;
@@ -62,7 +62,7 @@ body {
   flex-direction:column;
   align-items:center;
   justify-content:center;
-  gap: 4px;
+  gap: 0px;
   padding: 6px 0;
   border-radius: 12px;
   border: 1px solid transparent;
@@ -137,7 +137,7 @@ body {
 }
 
 .nav-label {
-  font-size: 0.78rem;
+  font-size: 11px;
 }
 
 .sidebar-divider {
