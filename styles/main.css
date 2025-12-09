@@ -42,7 +42,7 @@ body {
 .sidebar-top, .sidebar-bottom {
   display:flex; flex-direction:column;
   align-items:center;
-  gap: 24px; /* vertical spacing between items */
+  gap: 12px; /* vertical spacing between items */
 }
 
 .logo-mark {
