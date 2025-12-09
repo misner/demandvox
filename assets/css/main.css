@@ -12,6 +12,7 @@
   --radius-lg: 18px;
   --transition-fast: 150ms ease-out;
   --sidebar-header-right-pad: 4px;
+  --sidebar-anim-color: rgba(15, 118, 110, 0.10);
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -151,12 +152,12 @@ body {
 }
 
 .nav-icon {
-  width: 36px;           /* original correct icon size */
+  width: 36px;           /* original icon size */
   height: 36px;
   display:flex;
   align-items:center;
   justify-content:center;
-  border-radius: 8px;    /* slightly less rounded for a more square feel */
+  border-radius: 8px;    /* less rounded for a more square feel */
   background-color: transparent;
   transition: background var(--transition-fast);
 }
@@ -164,7 +165,7 @@ body {
 /* Hover target only affects icon tile */
 .nav-icon-button:hover .nav-icon,
 .nav-icon-button:focus-visible .nav-icon {
-  background-color: rgba(15, 118, 110, 0.10); /* bigger + stronger hover square */
+  background-color: var(--sidebar-anim-color); /* hover square */
 }
 
 /* Active icon tile */
@@ -175,7 +176,7 @@ body {
 /* Hover target only affects icon tile */
 .nav-icon-button:hover .nav-icon,
 .nav-icon-button:focus-visible .nav-icon {
-  background-color: rgba(15, 118, 110, 0.10); /* slightly stronger */
+  background-color: var(--sidebar-anim-color); /* slightly stronger */
 }
 
 /* Active icon tile */
@@ -364,8 +365,27 @@ body {
     flex-direction: row;
     justify-content: flex-start;
     align-items: center;
-    gap: 0px;
-    padding: 0px 0;
+    gap: 10px;
+    padding: 8px 12px;      
+    border-radius: 12px;    
+  }
+
+  /* FULL-ROW hover: background on the whole set {icon + text} */
+  .nav-icon-button:hover,
+  .nav-icon-button:focus-visible {
+    background-color: var(--sidebar-anim-color);  
+    color: var(--accent);
+  }
+  /* FULL-ROW active (selected item) */
+  .nav-icon-button.is-active {
+    background-color: rgba(15, 118, 110, 0.14);  /* same as desktop active */
+    color: var(--accent);
+  }
+   /* Disable tile hover on mobile (remove inner square) */
+  .nav-icon-button:hover .nav-icon,
+  .nav-icon-button:focus-visible .nav-icon,
+  .nav-icon-button.is-active .nav-icon {
+    background-color: transparent !important;
   }
 
   .nav-label {
