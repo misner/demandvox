@@ -11,7 +11,7 @@
   --radius-pill: 999px;
   --radius-lg: 18px;
   --transition-fast: 150ms ease-out;
-  --sidebar-header-right-pad: 24px;
+  --sidebar-header-right-pad: 4px;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -319,7 +319,7 @@ body {
   /* Sidebar becomes off-canvas and wider */
   .sidebar {
     width: 260px;
-    align-items: flex-start;
+    align-items: stretch;
     padding-inline: 5px;
     transform: translateX(-100%);
     transition: transform 180ms ease-out;
@@ -370,6 +370,7 @@ body {
   /* Optional: slightly left-align the icon tile */
   .sidebar-top, .sidebar-bottom {
     align-items: stretch;
+    width: 100%; 
   }
   
 }
