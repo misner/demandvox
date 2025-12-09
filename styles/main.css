@@ -148,7 +148,7 @@ body {
 
 /* Main region */
 .main {
-  margin-inline-start: var();
+  margin-inline-start: var(--sidebar-width);
   flex:1; min-height:100vh;
   display:flex; flex-direction:column;
 }
