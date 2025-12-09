@@ -1,5 +1,5 @@
 :root {
-  --sidebar-width: 96px;          /* narrow vertical rail like Perplexity */
+  --sidebar-width: 70px;          /* narrow vertical rail */
   --bg-body: #f6faf7;
   --bg-sidebar: #f3f5f2;
   --bg-canvas: #ffffff;
@@ -30,7 +30,7 @@ body {
 /* Sidebar: icon above label, narrow column */
 .sidebar {
   position:fixed; inset-block:0; inset-inline-start:0;
-  width: var(--sidebar-width);
+  width: var();
   background-color: var(--bg-sidebar);
   border-inline-end: 1px solid var(--border-subtle);
   padding: 20px 0 16px;
@@ -69,7 +69,7 @@ body {
   width: 100%;
   cursor: pointer;
   text-decoration: none;
-  color: #335b60; /* grey-teal like Perplexity icons */
+  color: #335b60; /* grey-teal icons */
   font-size: 0.8rem;
   font-weight: 400;
   background: transparent;
@@ -130,7 +130,7 @@ body {
 }
 
 .nav-icon svg {
-  width: 22px;          /* Perplexity-accurate icon size */
+  width: 22px;          
   height: 22px;
   display:block;
   color: inherit; /* mono-color SVG using currentColor */
@@ -148,7 +148,7 @@ body {
 
 /* Main region */
 .main {
-  margin-inline-start: var(--sidebar-width);
+  margin-inline-start: var();
   flex:1; min-height:100vh;
   display:flex; flex-direction:column;
 }
