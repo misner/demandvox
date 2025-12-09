@@ -11,6 +11,7 @@
   --radius-pill: 999px;
   --radius-lg: 18px;
   --transition-fast: 150ms ease-out;
+  --sidebar-header-right-pad: 24px;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -116,8 +117,6 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;  /* logo left, arrow right */
-  padding: 0 16px;
-  margin-bottom: 16px;
 }
 
 /* Generic nav item: icon stacked above label */
@@ -321,10 +320,15 @@ body {
   .sidebar {
     width: 260px;
     align-items: flex-start;
-    padding-inline: 16px;
+    padding-inline: 0px;
     transform: translateX(-100%);
     transition: transform 180ms ease-out;
     box-shadow: 0 10px 30px rgba(15, 23, 42, 0.25);
+  }
+
+  .sidebar-header {
+    padding-right: var(--sidebar-header-right-pad);
+    padding-left: 0;
   }
 
   /* When body has .sidebar-open, slide it in */
@@ -356,7 +360,7 @@ body {
     justify-content: flex-start;
     align-items: center;
     gap: 10px;
-    padding: 8px 8px;
+    padding: 8px 0;
   }
 
   .nav-label {
