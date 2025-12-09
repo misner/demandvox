@@ -318,7 +318,7 @@ body {
 
   /* Sidebar becomes off-canvas and wider */
   .sidebar {
-    width: 260px;
+    width: 220px;
     align-items: stretch;
     padding-inline: 5px;
     transform: translateX(-100%);
@@ -329,6 +329,11 @@ body {
   .sidebar-header {
     padding-right: var(--sidebar-header-right-pad);
     padding-left: 0;
+  }
+
+  .nav-icon svg {
+    width: 20px;
+    height: 20px;
   }
 
   /* When body has .sidebar-open, slide it in */
@@ -359,8 +364,8 @@ body {
     flex-direction: row;
     justify-content: flex-start;
     align-items: center;
-    gap: 10px;
-    padding: 8px 0;
+    gap: 0px;
+    padding: 0px 0;
   }
 
   .nav-label {
