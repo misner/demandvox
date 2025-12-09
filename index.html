@@ -6,15 +6,25 @@
   <title>Demandvox | Where you go for your B2B service providers. </title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <!-- Main styles extracted into a separate file -->
-  <link rel="stylesheet" href="styles/main.css">
+  <link rel="stylesheet" href="assets/main.css">
   <style>
     /* inline css */
   </style>
 </head>
 <body>
+  <button class="mobile-menu-toggle" aria-label="Open navigation">
+    <span class="mobile-menu-lines"></span>
+  </button>
+  
   <div class="layout">
     <aside class="sidebar" aria-label="Primary navigation">
       <div class="sidebar-top">
+
+        <!-- Collapse button (mobile) -->
+        <button class="sidebar-close" aria-label="Collapse navigation">
+          ←
+        </button>
+        
         <a href="./" class="logo-mark" aria-label="Home">
           <span>A</span>
         </a>
@@ -103,5 +113,7 @@
       </div>
     </main>
   </div>
+<script src="assets/js/sidebar.js"></script>
+
 </body>
 </html>
