@@ -35,14 +35,20 @@ body {
   z-index: 30;
   width: 32px;
   height: 32px;
-  border-radius: 999px;
-  border: none;
-  background: #0f766e;
-  color: #f9fafb;
-  display: none;          /* will be shown on mobile */
+  display: none;           /* still hidden on desktop; shown in @media */
   align-items: center;
   justify-content: center;
-  cursor: pointer;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: #335b60; 
+}
+
+/* Optional subtle hover background */
+.mobile-menu-toggle:hover,
+.mobile-menu-toggle:focus-visible {
+  background: rgba(15, 118, 110, 0.08);
+  border-radius: 999px;
 }
 
 /* Simple hamburger lines */
@@ -302,7 +308,7 @@ body {
     margin-inline-start: 0;
   }
 
-  /* Sidebar becomes off-canvas and wider like the slide-out in Perplexity */
+  /* Sidebar becomes off-canvas and wider */
   .sidebar {
     width: 260px;
     align-items: flex-start;
@@ -317,10 +323,22 @@ body {
     transform: translateX(0);
   }
 
-  /* Show the collapse button inside sidebar */
   .sidebar-close {
-    display: inline-flex;
     margin-bottom: 16px;
+  }
+
+  /* When sidebar is open: hide hamburger, show arrow */
+  body.sidebar-open .mobile-menu-toggle {
+    display: none;
+  }
+
+  body.sidebar-open .sidebar-close {
+    display: inline-flex;
+  }
+
+  /* When sidebar is closed: hide arrow (safety) */
+  body:not(.sidebar-open) .sidebar-close {
+    display: none;
   }
 
   /* Menu items become horizontal (icon + text) */
@@ -340,5 +358,6 @@ body {
   .sidebar-top, .sidebar-bottom {
     align-items: stretch;
   }
+  
 }
 
