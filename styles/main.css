@@ -25,7 +25,7 @@ body {
   display:flex;
 }
 
-.app-shell { display:flex; width:100%; }
+.layout { display:flex; width:100%; }
 
 /* Sidebar: icon above label, narrow column */
 .sidebar {
