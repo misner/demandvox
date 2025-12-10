@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Demandvox | Where you go for your B2B service providers. </title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Main styles extracted into a separate file -->
+  <link rel="stylesheet" href="assets/css/main.css">
+  <style>
+    /* inline css */
+  </style>
+</head>
+<body>
+  <button class="mobile-menu-toggle" aria-label="Open navigation">
+    <span class="mobile-menu-lines"></span>
+  </button>
+  
+  <div class="layout">
+    <aside class="sidebar" aria-label="Primary navigation">      
+
+      <!-- Collapse button (mobile) -->
+      <div class="sidebar-header">
+        <a href="./" class="logo-mark" aria-label="Home">
+          <span>A</span>
+        </a>      
+        <button class="sidebar-close" aria-label="Collapse navigation">←</button>
+      </div>   
+      
+      <!-- Menu group vertically center on desktop -->
+      <nav class="sidebar-menu">
+        <a href="./find-vendors.html" class="nav-icon-button" aria-label="Find vendors">
+          <span class="nav-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path fill="currentColor" d="M11 4a7 7 0 0 1 5.42 11.37l3.6 3.6a1 1 0 0 1-1.42 1.42l-3.6-3.6A7 7 0 1 1 11 4zm0 2a5 5 0 1 0 0 10a5 5 0 0 0 0-10z" />
+            </svg>
+          </span>
+          <span class="nav-label">Find vendors</span>
+        </a>
+
+        <a href="./community.html" class="nav-icon-button is-active" aria-label="Community">
+          <span class="nav-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path fill="currentColor" d="M7 10a3 3 0 1 1 0-6a3 3 0 0 1 0 6zm10 0a3 3 0 1 1 0-6a3 3 0 0 1 0 6zM4 20a3 3 0 0 1 3-3h2a3 3 0 0 1 3 3v1H4zm10 0a3 3 0 0 1 3-3h3a3 3 0 0 1 3 3v1h-9z" />
+            </svg>
+          </span>
+          <span class="nav-label">Community</span>
+        </a>
+
+        <a href="./tools.html" class="nav-icon-button" aria-label="Tools">
+          <span class="nav-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path fill="currentColor" d="M4 4h7v7H4zm9 0h7v7h-7zM4 13h7v7H4zm9 7v-7h7v7z" />
+            </svg>
+          </span>
+          <span class="nav-label">Tools</span>
+        </a>
+
+        <a href="./why.html" class="nav-icon-button" aria-label="About">
+          <span class="nav-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path fill="currentColor" d="M12 2a10 10 0 1 0 10 10A10.011 10.011 0 0 0 12 2zm0 16a1.25 1.25 0 1 1 1.25-1.25A1.25 1.25 0 0 1 12 18zm1.8-6.9l-.9.64A1.38 1.38 0 0 0 12.5 13v.25a.5.5 0 0 1-1 0V13a2.37 2.37 0 0 1 1-2l.94-.68A1.38 1.38 0 0 0 13.5 8a1.5 1.5 0 1 0-3 0a.5.5 0 0 1-1 0a2.5 2.5 0 1 1 4.3 1.6z" />
+            </svg>
+          </span>
+          <span class="nav-label">Why us</span>
+        </a>
+      </nav>  
+      
+      <div class="sidebar-bottom">
+        <a href="./help.html" class="nav-icon-button" aria-label="Get help">
+          <span class="nav-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path fill="currentColor" d="M4 4h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-5.5L9 21.5V16H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm4.5 6a1 1 0 1 0-1-1a1 1 0 0 0 1 1zm3.5 0a1 1 0 1 0-1-1a1 1 0 0 0 1 1zm3.5 0a1 1 0 1 0-1-1a1 1 0 0 0 1 1z" />
+            </svg>
+          </span>
+          <span class="nav-label">Get help</span>
+        </a>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="main-inner">
+        <header class="top-banner">
+          <div class="banner-text-group">
+            <span class="banner-title">Find the right demand gen vendor</span>
+            <span class="banner-dot"></span>
+            <span class="banner-vendor-row">
+              used by teams like
+              <span class="vendor-badge">A</span>
+              <span class="vendor-badge">B</span>
+              <span class="vendor-badge">C</span>
+              <span class="vendor-badge">D</span>
+              <span class="vendor-badge">E</span>
+            </span>
+          </div>
+          <div class="banner-vendor-row banner-free">
+            <span>100% free for buyers</span>
+          </div>
+        </header>
+
+        <section class="page-canvas" aria-label="Blank workspace">
+          <div class="page-canvas-inner">
+            <p>Coming soon</p>
+            <p>Community starts with feedback :-) Tell me what you'like to to see => my Calendly</p>
+          </div>
+        </section>
+
+        <p class="bottom-hint">
+          Tip: duplicate this file and update the sidebar links when you add more pages.
+        </p>
+      </div>
+    </main>
+  </div>
+<script src="assets/js/sidebar.js"></script>
+
+</body>
+</html>
