@@ -27,6 +27,12 @@ body {
   display:flex;
 }
 
+/* test*/
+.bg-sand-3.fadeIn.aspect-square.size-full {
+  display:none;
+}
+
+
 .layout { display:flex; width:100%; }
 
 /* Hamburger button – hidden by default (desktop) */
