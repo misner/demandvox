@@ -51,7 +51,7 @@ function injectCssIntoIframe(iframe) {
 
     const style = doc.createElement("style");
     style.textContent = `
-      .delphi-profile-container {
+      .delphi-talk-container {
         background-color: red !important;
       }
       /* Add more overrides here */
