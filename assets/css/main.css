@@ -248,6 +248,8 @@ body {
   border-radius: var(--radius-pill);
   border: 1px solid var(--border-subtle);
   background-color: #ffffff;
+  margin-right: 5px;
+  margin-left: 5px;
 }
 
 .banner-text-group {
@@ -417,11 +419,10 @@ body {
   }
 
   @media (max-width: 480px) {
-  .main-inner {
-    max-width: min(960px, 100% - 5px);    
+    .main-inner {
+      max-width: min(960px, 100% - 5px);    
+    }    
   }
-    
-}
   
 }
 
