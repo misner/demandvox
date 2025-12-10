@@ -232,11 +232,11 @@ body {
 }
 
 .main-inner {
-  /* Always leave 32px of space on each side: 2 × 25px = 64px */
+  /* Always leave 32px of space on each side: 2 × 25px = 50px */
   max-width: min(960px, 100% - 50px);
   width: 100%;
   margin: 0 auto;
-  padding: 40px 0px 48px;
+  padding: 10px 0px 10px;
   display:flex; flex-direction:column; gap:24px;
 }
 
@@ -319,9 +319,18 @@ body {
   }
 }
 
+@media (max-width: 1024px) {
+  .page-canvas-inner {
+    width: 90%;
+  )
+)
 @media (max-width: 768px) {
   :root { --sidebar-width: 80px; }
 
+  .page-canvas-inner {
+    width: 100%;
+  }
+  
   /* Show hamburger */
   .mobile-menu-toggle {
     display: inline-flex;
@@ -412,10 +421,6 @@ body {
 
   .nav-label {
     font-size: 0.9rem;
-  }
-
-  .page-canvas-inner {
-    width: 100%;
   }
 
   @media (max-width: 480px) {
