@@ -1,6 +1,6 @@
 :root {
   --sidebar-width: 72px;          /* narrow vertical rail */
-  --bg-body: #f6faf7;
+  --bg-body: #fcfcf9;
   --bg-sidebar: #f3f5f2;
   --bg-canvas: #ffffff;
   --accent: #0f766e;              /* teal */
@@ -111,8 +111,8 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;/* vertical spacing between items */
-  width: 100%; /* not sure*/
+  gap: 7px;/* vertical spacing between items */
+  width: 100%;
 }
 
 .logo-mark {
