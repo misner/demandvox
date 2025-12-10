@@ -10,7 +10,7 @@ function waitForIframe(selector, onFound) {
     const iframe = document.querySelector(selector);
 
     if (iframe) {
-      console.log("[delphi-styling] Iframe found:", iframe);
+      //console.log("[delphi-styling] Iframe found:", iframe);
       clearInterval(timer);
       onFound(iframe);
       return;
@@ -30,52 +30,51 @@ function injectCssIntoIframe(iframe) {
     let doc;
     try {
       doc = iframe.contentDocument || iframe.contentWindow.document;
-      console.log("[delphi-styling] iframe.contentDocument:", doc);
+      //console.log("[delphi-styling] iframe.contentDocument:", doc);
     } catch (e) {
-      console.error("[delphi-styling] Error accessing iframe document", e);
+      //console.error("[delphi-styling] Error accessing iframe document", e);
       return;
     }
 
     if (!doc) {
-      console.error("[delphi-styling] iframe document is null/undefined");
+      //console.error("[delphi-styling] iframe document is null/undefined");
       return;
     }
 
     const head = doc.head || doc.getElementsByTagName("head")[0];
-    console.log("[delphi-styling] iframe <head>:", head);
+    //console.log("[delphi-styling] iframe <head>:", head);
 
     if (!head) {
-      console.error("[delphi-styling] No <head> found in iframe document");
+      //console.error("[delphi-styling] No <head> found in iframe document");
       return;
     }
 
     const style = doc.createElement("style");
     style.textContent = `
       .delphi-talk-container {
-        background-color: red !important;
+        /*background-color: red !important;*/
       }
-      /* Add more overrides here */
     `;
 
     head.appendChild(style);
-    console.log("[delphi-styling] Style element injected into iframe head");
+    //console.log("[delphi-styling] Style element injected into iframe head");
   }
 
   // If iframe already fully loaded, inject immediately
   if (iframe.contentDocument && iframe.contentDocument.readyState === "complete") {
-    console.log("[delphi-styling] iframe already loaded, injecting immediately");
+    //console.log("[delphi-styling] iframe already loaded, injecting immediately");
     doInject();
   } else {
-    console.log("[delphi-styling] Attaching iframe load listener");
+    //console.log("[delphi-styling] Attaching iframe load listener");
     iframe.addEventListener("load", () => {
-      console.log("[delphi-styling] iframe load event fired");
+      //console.log("[delphi-styling] iframe load event fired");
       doInject();
     });
   }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  console.log("[delphi-styling] DOMContentLoaded fired");
+  //console.log("[delphi-styling] DOMContentLoaded fired");
 
   // We don't assume iframe exists yet – Delphi injects it later
   waitForIframe("#delphi-frame", injectCssIntoIframe);
