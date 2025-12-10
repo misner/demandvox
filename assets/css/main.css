@@ -90,15 +90,27 @@ body {
   background-color: var(--bg-sidebar);
   border-inline-end: 1px solid var(--border-subtle);
   padding: 20px 0 16px;
-  display:flex; flex-direction:column; justify-content:space-between;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
   align-items:center;
   z-index:20;
 }
 
-.sidebar-top, .sidebar-bottom {
-  display:flex; flex-direction:column;
-  align-items:center;
-  gap: 12px; /* vertical spacing between items */
+/* Logo at top */
+.sidebar-logo {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+/* Menu group */
+.sidebar-menu {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;/* vertical spacing between items */
+  width: 100%; /* not sure*/
 }
 
 .logo-mark {
@@ -304,6 +316,14 @@ body {
 }
 */
 
+/* Desktop-only vertical centering of the menu group */
+@media (min-width: 769px) {
+  .sidebar-menu {
+    margin-top: auto;
+    margin-bottom: auto;
+  }
+}
+
 @media (max-width: 768px) {
   :root { --sidebar-width: 80px; }
 
@@ -390,12 +410,6 @@ body {
 
   .nav-label {
     font-size: 0.9rem;
-  }
-
-  /* Optional: slightly left-align the icon tile */
-  .sidebar-top, .sidebar-bottom {
-    align-items: stretch;
-    width: 100%; 
   }
   
 }
