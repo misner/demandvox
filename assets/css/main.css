@@ -415,6 +415,13 @@ body {
   .page-canvas-inner {
     width: 100%;
   }
+
+  @media (max-width: 480px) {
+  .main-inner {
+    max-width: min(960px, 100% - 5px);    
+  }
+    
+}
   
 }
 
