@@ -232,7 +232,8 @@ body {
 }
 
 .main-inner {
-  max-width: 960px;
+  /* Always leave 32px of space on each side: 2 × 25px = 64px */
+  max-width: min(960px, 100% - 50px);
   width: 100%;
   margin: 0 auto;
   padding: 40px 0px 48px;
