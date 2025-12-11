@@ -87,16 +87,17 @@ function enableIframeAutoResize(iframe) {
         const rect = iframe.getBoundingClientRect();
         const iframeBottomInPage = window.scrollY + rect.bottom;
         const targetScrollTop = iframeBottomInPage - window.innerHeight;
-
+  
         if (targetScrollTop > 0) {
-          console.log("[delphi-resize] Auto-scrolling page to", targetScrollTop);
-          window.scrollTo({
-            top: targetScrollTop,
-            behavior: "auto"   // use "smooth" if you prefer the animation
-          });
+          console.log("[delphi-resize] Auto-scrolling outer page to", targetScrollTop);
+          window.scrollTo({ top: targetScrollTop, behavior: "auto" });
+  
+          // Mark auto-scroll as done ONLY when we really scrolled
+          firstAutoScrollDone = true;
+        } else {
+          console.log("[delphi-resize] No auto-scroll needed (iframe shorter than viewport)");
+          // Do NOT flip firstAutoScrollDone here; we may need it later
         }
-
-        firstAutoScrollDone = true;
       }
     } catch (e) {
       console.error("[delphi-resize] Failed to resize iframe", e);
