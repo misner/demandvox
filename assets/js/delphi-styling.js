@@ -61,7 +61,7 @@ function injectCssIntoIframe(iframe) {
         background-color: blue !important;
       }
       html {
-        overflow:hidden !important; /*hide scrollbar from Delphi iframe*/
+        
         background-color: yellow !important;
       }
     `;
