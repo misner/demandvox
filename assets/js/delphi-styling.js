@@ -15,7 +15,7 @@ function waitForIframe(selector, onFound) {
     if (iframe) {
       console.log("[delphi-styling] Iframe found:", iframe);
 
-      // NEW: give the iframe an initial 80% viewport height
+      // Give the iframe an initial 80% viewport height
       // so there is no visible jump when resizeIframe() runs
       //(when no messages it used to jump from high up to bottom with our 80% of height rule
       const initialMinHeight = Math.floor(window.innerHeight * 0.8);
