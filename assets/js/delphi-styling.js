@@ -54,6 +54,9 @@ function injectCssIntoIframe(iframe) {
       .delphi-talk-container {
         /*background-color: red !important;*/
       }
+      .html {
+        overflow:hidden; /*hide scrollbar from Delphi iframe*/
+      }
     `;
 
     head.appendChild(style);
