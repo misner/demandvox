@@ -1,4 +1,10 @@
 /********************************************************************
+ * Constants
+ ********************************************************************/
+const MIN_IFRAME_VIEWPORT_RATIO = 0.8;
+
+
+/********************************************************************
  * 1. Wait until iframe exists
  ********************************************************************/
 function waitForIframe(selector, onFound) {
@@ -17,8 +23,10 @@ function waitForIframe(selector, onFound) {
 
       // Give the iframe an initial 80% viewport height
       // so there is no visible jump when resizeIframe() runs
+      // - applied the moment the iframe appears, before it loads
+      // prevents the "jump" when there are no messages
       //(when no messages it used to jump from high up to bottom with our 80% of height rule
-      const initialMinHeight = Math.floor(window.innerHeight * 0.8);
+      const initialMinHeight = Math.floor(window.innerHeight * MIN_IFRAME_VIEWPORT_RATIO);
       iframe.style.minHeight = initialMinHeight + "px";
       iframe.style.height = initialMinHeight + "px";
       iframe.style.width = "100%";
@@ -65,9 +73,13 @@ function enableIframeAutoResize(iframe) {
         console.warn("[delphi-resize] No iframe document yet");
         return;
       }
-  
+      
       const contentHeight = doc.documentElement.scrollHeight;
-      const minHeight = Math.floor(window.innerHeight * 0.8);
+      //ensures layout stays consistent when Delphi loads content
+      //Later, when messages exist OR when the user types, Delphi's
+      //content height changes dynamically. At that point, the system must ensure:
+      // the iframe grows to fit content, BUT never shrinks below 80% of viewport height.
+      const minHeight = Math.floor(window.innerHeight * MIN_IFRAME_VIEWPORT_RATIO);
       const finalHeight = Math.max(contentHeight, minHeight);
   
       iframe.style.height = finalHeight + "px";
