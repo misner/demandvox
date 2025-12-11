@@ -322,8 +322,8 @@ body {
 @media (max-width: 1024px) {
   .page-canvas-inner {
     width: 90%;
-  )
-)
+  }
+}
 @media (max-width: 768px) {
   :root { --sidebar-width: 80px; }
 
