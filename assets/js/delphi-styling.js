@@ -29,6 +29,8 @@ function waitForIframe(selector, onFound) {
 
 /********************************************************************
  * 2. Resize the iframe so scrolling happens on the high-level page (not inside the iframe)
+allow Delphi chat to expand/grow naturally as messages are added, without showing an internal
+scrollbar and without cutting off content.
  ********************************************************************/
 function enableIframeAutoResize(iframe) {
   console.log("[delphi-resize] Initializing auto-resize");
@@ -94,10 +96,44 @@ function enableIframeAutoResize(iframe) {
 
 
 /********************************************************************
+ * 2B. Pre-inject CSS IMMEDIATELY to kill iframe scrollbar
+ * This prevents the scrollbar flash AND the scrollbar tip appearing.
+ ********************************************************************/
+function preKillIframeScrollbar(iframe) {
+  try {
+    const doc = iframe.contentDocument || iframe.contentWindow.document;
+    if (!doc) return;
+
+    const style = doc.createElement("style");
+    style.textContent = `
+      /* HARD override to remove scrollbar instantly */
+      html, body {
+        scrollbar-width: none !important;      /* Firefox */
+        -ms-overflow-style: none !important;   /* IE */
+      }
+      html::-webkit-scrollbar,
+      body::-webkit-scrollbar {
+        display: none !important;              /* Chrome / Safari */
+      }
+    `;
+    doc.head.appendChild(style);
+  } catch (e) {
+    console.warn("[delphi-styling] Cannot pre-inject scrollbar-kill CSS", e);
+  }
+}
+
+
+
+
+
+/********************************************************************
  * 3. Inject CSS into the iframe safely
  ********************************************************************/
 function injectCssIntoIframe(iframe) {
   console.log("[delphi-styling] injectCssIntoIframe called");
+
+  // NEW: kill scrollbar IMMEDIATELY before anything loads
+  preKillIframeScrollbar(iframe);
 
   function doInject() {
     let doc;
