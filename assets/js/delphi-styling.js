@@ -65,60 +65,109 @@ function enableIframeAutoResize(iframe) {
         console.warn("[delphi-resize] No iframe document yet");
         return;
       }
-
-      // 1) Compute real content height inside Delphi
+  
       const contentHeight = doc.documentElement.scrollHeight;
-
-      // 2) Minimum: 80% of current viewport height
       const minHeight = Math.floor(window.innerHeight * 0.8);
-
-      // 3) Final height: whichever is larger
       const finalHeight = Math.max(contentHeight, minHeight);
-
+  
       iframe.style.height = finalHeight + "px";
       iframe.style.maxHeight = "none";
       iframe.style.width = "100%";
-
+  
       console.log("[delphi-resize] Updated iframe height →", finalHeight);
-
-      // 4) Auto-scroll ONCE to bring the input/footer into view
-      //    (only if user hasn't started scrolling themselves)
-      if (!firstAutoScrollDone && !userHasScrolled) {
-        const rect = iframe.getBoundingClientRect();
-        const iframeBottomInPage = window.scrollY + rect.bottom;
-        const targetScrollTop = iframeBottomInPage - window.innerHeight;
-  
-        if (targetScrollTop > 0) {
-          console.log("[delphi-resize] Auto-scrolling outer page to", targetScrollTop);
-          window.scrollTo({ top: targetScrollTop, behavior: "auto" });
-  
-          // Mark auto-scroll as done ONLY when we really scrolled
-          firstAutoScrollDone = true;
-        } else {
-          console.log("[delphi-resize] No auto-scroll needed (iframe shorter than viewport)");
-          // Do NOT flip firstAutoScrollDone here; we may need it later
-        }
-      }
     } catch (e) {
       console.error("[delphi-resize] Failed to resize iframe", e);
     }
   }
 
+  // Scroll outer page so iframe bottom is aligned with viewport bottom
+  function scrollOuterPageToIframeBottom() {
+    const rect = iframe.getBoundingClientRect();
+    const iframeBottomInPage = window.scrollY + rect.bottom;
+    const targetScrollTop = iframeBottomInPage - window.innerHeight;
+
+    if (targetScrollTop > 0) {
+      console.log("[delphi-resize] Auto-scrolling outer page to", targetScrollTop);
+      window.scrollTo({ top: targetScrollTop, behavior: "auto" });
+      firstAutoScrollDone = true;
+    } else {
+      console.log("[delphi-resize] No auto-scroll needed (iframe shorter than viewport)");
+    }
+  }
+
+
   // Run resize when iframe loads, and again a bit later to catch late content
   iframe.addEventListener("load", () => {
     console.log("[delphi-resize] iframe load event");
     resizeIframe();
-    setTimeout(resizeIframe, 200);
-    setTimeout(resizeIframe, 800);
+
+    // If iframe content is already tall and user has not scrolled yet,
+    // scroll outer page ONCE to bring the input/footer into view
+    if (!firstAutoScrollDone && !userHasScrolled) {
+      scrollOuterPageToIframeBottom();
+    }
   });
+
+  // Watch Delphi message list and react when new messages are added
+  try {
+    const doc = iframe.contentDocument || iframe.contentWindow.document;
+    if (doc) {
+      const conversation = doc.querySelector(".delphi-chat-conversation");
+      if (conversation) {
+        console.log("[delphi-resize] Attaching MutationObserver to .delphi-chat-conversation");
+
+        const observer = new MutationObserver((mutations) => {
+          let hasAddedNodes = false;
+
+          for (const m of mutations) {
+            if (m.type === "childList" && m.addedNodes && m.addedNodes.length > 0) {
+              hasAddedNodes = true;
+              break;
+            }
+          }
+
+          if (!hasAddedNodes) return;
+
+          console.log("[delphi-resize] New Delphi messages detected → resizing + possible auto-scroll");
+          resizeIframe();
+
+          // Only auto-scroll if user has not started scrolling
+          if (!firstAutoScrollDone && !userHasScrolled) {
+            scrollOuterPageToIframeBottom();
+          }
+        });
+
+        observer.observe(conversation, { childList: true });
+      } else {
+        console.warn("[delphi-resize] .delphi-chat-conversation not found; MutationObserver not attached");
+      }
+    }
+  } catch (e) {
+    console.warn("[delphi-resize] Failed to attach MutationObserver", e);
+  }
+
 
   // Recalculate when viewport size changes
   window.addEventListener("resize", resizeIframe);
 
   // Periodic re-check in case Delphi changes layout after messages stream in
   setInterval(resizeIframe, 1500);
-}
 
+  // In case iframe is already fully loaded when we attach:
+  try {
+    const readyDoc = iframe.contentDocument || iframe.contentWindow.document;
+    if (readyDoc && readyDoc.readyState === "complete") {
+      console.log("[delphi-resize] iframe already complete → initial resize + optional auto-scroll");
+      resizeIframe();
+      if (!firstAutoScrollDone && !userHasScrolled) {
+        scrollOuterPageToIframeBottom();
+      }
+    }
+  } catch (e) {
+    console.warn("[delphi-resize] Initial immediate resize check failed", e);
+  }
+
+}
 
 /********************************************************************
  * 2B. Pre-inject CSS IMMEDIATELY to kill iframe scrollbar
