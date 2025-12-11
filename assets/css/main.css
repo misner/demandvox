@@ -304,13 +304,6 @@ body {
   font-size: 0.95rem;
 }
 
-.bottom-hint {
-  margin-top: 16px;
-  font-size: 0.8rem;
-  color: #9ca3af;
-  text-align:center;
-}
-
 /* Desktop-only vertical centering of the menu group */
 @media (min-width: 769px) {
   .sidebar-menu {
