@@ -61,7 +61,7 @@ function injectCssIntoIframe(iframe) {
         background-color: blue !important;
       }
       html {
-        
+
         background-color: yellow !important;
       }
     `;
