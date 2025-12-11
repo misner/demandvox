@@ -1,93 +1,3 @@
-// function waitForIframe(selector, onFound) {
-//   console.log("[delphi-styling] Waiting for iframe with selector:", selector);
-
-//   const MAX_TIME = 15000;  // 15s timeout safety
-//   const INTERVAL = 200;    // check every 200ms
-
-//   const start = Date.now();
-
-//   const timer = setInterval(() => {
-//     const iframe = document.querySelector(selector);
-
-//     if (iframe) {
-//       console.log("[delphi-styling] Iframe found:", iframe);
-//       clearInterval(timer);
-//       onFound(iframe);
-//       return;
-//     }
-
-//     if (Date.now() - start > MAX_TIME) {
-//       console.error("[delphi-styling] Timeout: iframe not found within 15s");
-//       clearInterval(timer);
-//     }
-//   }, INTERVAL);
-// }
-
-// function injectCssIntoIframe(iframe) {
-//   console.log("[delphi-styling] injectCssIntoIframe called");
-
-//   function doInject() {
-//     let doc;
-//     try {
-//       doc = iframe.contentDocument || iframe.contentWindow.document;
-//       console.log("[delphi-styling] iframe.contentDocument doc=:", doc);
-//     } catch (e) {
-//       console.error("[delphi-styling] Error accessing iframe document", e);
-//       return;
-//     }
-
-//     if (!doc) {
-//       console.error("[delphi-styling] iframe document is null/undefined");
-//       return;
-//     }
-
-//     const head = doc.head || doc.getElementsByTagName("head")[0];
-//     console.log("[delphi-styling] iframe <head>:", head);
-
-//     if (!head) {
-//       console.error("[delphi-styling] No <head> found in iframe document");
-//       return;
-//     }
-
-//     const style = doc.createElement("style");
-//     style.textContent = `
-//       /*.delphi-talk-container {
-//         background-color: red !important;
-//       }*/
-//       body {
-        
-//       }      
-//       html {
-//         /*overflow:hidden !important; hide scrollbar from Delphi iframe*/
-//       }
-//     `;
-
-//     head.appendChild(style);
-//     console.log("[delphi-styling] Style element injected into iframe head");
-//   }
-
-//   // If iframe already fully loaded, inject immediately
-//   if (iframe.contentDocument && iframe.contentDocument.readyState === "complete") {
-//     //console.log("[delphi-styling] iframe already loaded, injecting immediately");
-//     doInject();
-//   } else {
-//     //console.log("[delphi-styling] Attaching iframe load listener");
-//     iframe.addEventListener("load", () => {
-//       //console.log("[delphi-styling] iframe load event fired");
-//       doInject();
-//     });
-//   }
-// }
-
-// document.addEventListener("DOMContentLoaded", () => {
-//   //console.log("[delphi-styling] DOMContentLoaded fired");
-
-//   // We don't assume iframe exists yet – Delphi injects it later
-//   waitForIframe("#delphi-frame", injectCssIntoIframe);
-// });
-
-
-
 /********************************************************************
  * 1. Wait until iframe exists
  ********************************************************************/
@@ -118,10 +28,13 @@ function waitForIframe(selector, onFound) {
 
 
 /********************************************************************
- * 2. Resize the iframe so scrolling happens on your page (not inside)
+ * 2. Resize the iframe so scrolling happens on the high-level page (not inside the iframe)
  ********************************************************************/
 function enableIframeAutoResize(iframe) {
   console.log("[delphi-resize] Initializing auto-resize");
+
+  // We only auto-scroll the very first time we successfully resize.
+  let firstResizeDone = false;
 
   function resizeIframe() {
     try {
@@ -134,11 +47,30 @@ function enableIframeAutoResize(iframe) {
       const height = doc.documentElement.scrollHeight;
       iframe.style.height = height + "px";
       iframe.style.maxHeight = "none";
-
-      // Optional full width
       iframe.style.width = "100%";
 
       console.log("[delphi-resize] Updated iframe height →", height);
+
+      // --- New part: auto-scroll so the iframe bottom is at viewport bottom ---
+      if (!firstResizeDone) {
+        firstResizeDone = true;
+
+        // Where is the iframe relative to the viewport?
+        const rect = iframe.getBoundingClientRect();
+        const iframeBottomInPage = window.scrollY + rect.bottom;
+
+        // We want iframe bottom == window.innerHeight + scrollY
+        const targetScrollTop = iframeBottomInPage - window.innerHeight;
+
+        if (targetScrollTop > 0) {
+          console.log("[delphi-resize] Auto-scrolling to show input at bottom:", targetScrollTop);
+          window.scrollTo({
+            top: targetScrollTop,
+            behavior: "instant" in window ? "instant" : "auto" // fallback
+          });
+        }
+      }
+      // -----------------------------------------------------------------------
     } catch (e) {
       console.error("[delphi-resize] Failed to resize iframe", e);
     }
@@ -158,6 +90,7 @@ function enableIframeAutoResize(iframe) {
   // Extra periodic check (iframe UI may auto-expand)
   setInterval(resizeIframe, 1500);
 }
+
 
 
 /********************************************************************
@@ -226,6 +159,6 @@ function injectCssIntoIframe(iframe) {
 document.addEventListener("DOMContentLoaded", () => {
   console.log("[delphi-styling] DOMContentLoaded");
 
-  // Delphi injects iframe dynamically → we wait for it
+  // Delphi injects iframe dynamically → waiting for it
   waitForIframe("#delphi-frame", injectCssIntoIframe);
 });
