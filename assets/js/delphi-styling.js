@@ -45,9 +45,20 @@ function enableIframeAutoResize(iframe) {
         console.warn("[delphi-resize] No iframe document yet");
         return;
       }
-
-      const height = doc.documentElement.scrollHeight;
-      iframe.style.height = height + "px";
+      // if iframe's height is lower  than viewport height apply 80% of viewport height
+      // if iframe height's height larger thean viewport height (e.g. long chat history), 
+      //the surrounding page scrolls normally and Delphi footer stays sticky inside the iframe.
+      
+      // True required height based on actual Delphi content
+      const contentHeight = doc.documentElement.scrollHeight;
+      
+      // Minimum height: 80% of viewport
+      const minHeight = Math.floor(window.innerHeight * 0.8);
+      
+      // Choose whichever is bigger
+      const finalHeight = Math.max(contentHeight, minHeight);
+      
+      iframe.style.height = finalHeight + "px";
       iframe.style.maxHeight = "none";
       iframe.style.width = "100%";
 
