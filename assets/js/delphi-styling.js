@@ -95,17 +95,10 @@ function enableIframeAutoResize(iframe) {
     }
   }
 
-
-  // Run resize when iframe loads, and again a bit later to catch late content
   iframe.addEventListener("load", () => {
     console.log("[delphi-resize] iframe load event");
+    // Only resize on load, do NOT auto-scroll here
     resizeIframe();
-
-    // If iframe content is already tall and user has not scrolled yet,
-    // scroll outer page ONCE to bring the input/footer into view
-    if (!firstAutoScrollDone && !userHasScrolled) {
-      scrollOuterPageToIframeBottom();
-    }
   });
 
   // Watch Delphi message list and react when new messages are added
@@ -143,13 +136,22 @@ function enableIframeAutoResize(iframe) {
         console.log("[delphi-resize] New Delphi messages detected → resizing + possible auto-scroll");
         resizeIframe();
 
-        // Only auto-scroll if user has not started scrolling
+        // Only auto-scroll if user has not started scrolling yet
         if (!firstAutoScrollDone && !userHasScrolled) {
           scrollOuterPageToIframeBottom();
         }
       });
 
       observer.observe(conversation, { childList: true });
+
+      // NEW: do one immediate resize + auto-scroll when we first
+      // discover the conversation (covers the "many messages already there" case)
+      console.log("[delphi-resize] Conversation found → initial resize + possible auto-scroll");
+      resizeIframe();
+      if (!firstAutoScrollDone && !userHasScrolled) {
+        scrollOuterPageToIframeBottom();
+      }
+
       return true;
     }
 
@@ -188,11 +190,9 @@ function enableIframeAutoResize(iframe) {
   try {
     const readyDoc = iframe.contentDocument || iframe.contentWindow.document;
     if (readyDoc && readyDoc.readyState === "complete") {
-      console.log("[delphi-resize] iframe already complete → initial resize + optional auto-scroll");
+      console.log("[delphi-resize] iframe already complete → initial resize only");
+      // Only resize here, do NOT auto-scroll
       resizeIframe();
-      if (!firstAutoScrollDone && !userHasScrolled) {
-        scrollOuterPageToIframeBottom();
-      }
     }
   } catch (e) {
     console.warn("[delphi-resize] Initial immediate resize check failed", e);
