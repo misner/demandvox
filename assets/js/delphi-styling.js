@@ -10,7 +10,7 @@ function waitForIframe(selector, onFound) {
     const iframe = document.querySelector(selector);
 
     if (iframe) {
-      //console.log("[delphi-styling] Iframe found:", iframe);
+      console.log("[delphi-styling] Iframe found:", iframe);
       clearInterval(timer);
       onFound(iframe);
       return;
@@ -30,30 +30,30 @@ function injectCssIntoIframe(iframe) {
     let doc;
     try {
       doc = iframe.contentDocument || iframe.contentWindow.document;
-      //console.log("[delphi-styling] iframe.contentDocument:", doc);
+      console.log("[delphi-styling] iframe.contentDocument doc=:", doc);
     } catch (e) {
-      //console.error("[delphi-styling] Error accessing iframe document", e);
+      console.error("[delphi-styling] Error accessing iframe document", e);
       return;
     }
 
     if (!doc) {
-      //console.error("[delphi-styling] iframe document is null/undefined");
+      console.error("[delphi-styling] iframe document is null/undefined");
       return;
     }
 
     const head = doc.head || doc.getElementsByTagName("head")[0];
-    //console.log("[delphi-styling] iframe <head>:", head);
+    console.log("[delphi-styling] iframe <head>:", head);
 
     if (!head) {
-      //console.error("[delphi-styling] No <head> found in iframe document");
+      console.error("[delphi-styling] No <head> found in iframe document");
       return;
     }
 
     const style = doc.createElement("style");
     style.textContent = `
-      .delphi-talk-container {
+      /*.delphi-talk-container {
         background-color: red !important;
-      }
+      }*/
       html {
         overflow:hidden !important; /*hide scrollbar from Delphi iframe*/
         background-color: yellow !important;
@@ -61,7 +61,7 @@ function injectCssIntoIframe(iframe) {
     `;
 
     head.appendChild(style);
-    //console.log("[delphi-styling] Style element injected into iframe head");
+    console.log("[delphi-styling] Style element injected into iframe head");
   }
 
   // If iframe already fully loaded, inject immediately
