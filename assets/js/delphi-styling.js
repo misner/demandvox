@@ -111,36 +111,67 @@ function enableIframeAutoResize(iframe) {
   // Watch Delphi message list and react when new messages are added
   try {
     const doc = iframe.contentDocument || iframe.contentWindow.document;
-    if (doc) {
+    if (!doc) {
+      console.warn("[delphi-resize] No doc for MutationObserver");
+      return;
+    }
+
+    /**
+     * Attach the observer to .delphi-chat-conversation once it exists.
+     * Called both immediately and from a body-level observer.
+     */
+    function attachConversationObserverIfReady() {
       const conversation = doc.querySelector(".delphi-chat-conversation");
-      if (conversation) {
-        console.log("[delphi-resize] Attaching MutationObserver to .delphi-chat-conversation");
-
-        const observer = new MutationObserver((mutations) => {
-          let hasAddedNodes = false;
-
-          for (const m of mutations) {
-            if (m.type === "childList" && m.addedNodes && m.addedNodes.length > 0) {
-              hasAddedNodes = true;
-              break;
-            }
-          }
-
-          if (!hasAddedNodes) return;
-
-          console.log("[delphi-resize] New Delphi messages detected → resizing + possible auto-scroll");
-          resizeIframe();
-
-          // Only auto-scroll if user has not started scrolling
-          if (!firstAutoScrollDone && !userHasScrolled) {
-            scrollOuterPageToIframeBottom();
-          }
-        });
-
-        observer.observe(conversation, { childList: true });
-      } else {
-        console.warn("[delphi-resize] .delphi-chat-conversation not found; MutationObserver not attached");
+      if (!conversation) {
+        return false;
       }
+
+      console.log("[delphi-resize] Attaching MutationObserver to .delphi-chat-conversation");
+
+      const observer = new MutationObserver((mutations) => {
+        let hasAddedNodes = false;
+
+        for (const m of mutations) {
+          if (m.type === "childList" && m.addedNodes && m.addedNodes.length > 0) {
+            hasAddedNodes = true;
+            break;
+          }
+        }
+
+        if (!hasAddedNodes) return;
+
+        console.log("[delphi-resize] New Delphi messages detected → resizing + possible auto-scroll");
+        resizeIframe();
+
+        // Only auto-scroll if user has not started scrolling
+        if (!firstAutoScrollDone && !userHasScrolled) {
+          scrollOuterPageToIframeBottom();
+        }
+      });
+
+      observer.observe(conversation, { childList: true });
+      return true;
+    }
+
+    // 1) Try immediately (conversation may already be there)
+    if (attachConversationObserverIfReady()) {
+      // All good, no need for a second observer
+      console.log("[delphi-resize] Conversation found immediately");
+    } else {
+      // 2) If not found yet, watch the whole body until it appears
+      console.log("[delphi-resize] .delphi-chat-conversation not yet present → watching body");
+
+      const bodyObserver = new MutationObserver(() => {
+        if (attachConversationObserverIfReady()) {
+          console.log("[delphi-resize] Conversation appeared later → body observer disconnected");
+          bodyObserver.disconnect();
+        }
+      });
+
+      bodyObserver.observe(doc.body || doc.documentElement, {
+        childList: true,
+        subtree: true,
+      });
     }
   } catch (e) {
     console.warn("[delphi-resize] Failed to attach MutationObserver", e);
