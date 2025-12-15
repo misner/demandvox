@@ -441,7 +441,15 @@ function injectOverridesIntoIframe(iframe) {
     }
 
     // CSS injections
-    const style = doc.createElement("style");
+    const INJECT_CSS_STYLE_ID = "dv-delphi-overrides";
+    let style = doc.getElementById(INJECT_CSS_STYLE_ID);
+    
+    if (!style) {
+      style = doc.createElement("style");
+      style.id = INJECT_CSS_STYLE_ID;
+      head.appendChild(style);
+    }
+    
     style.textContent = `
       /* Example: styling access confirmed */
       /* .delphi-talk-container { background: red !important; } */
@@ -488,8 +496,7 @@ function injectOverridesIntoIframe(iframe) {
         visibility: hidden !important;
       }
     `;
-
-    head.appendChild(style);
+    
     console.log("[delphi-styling] CSS injected into iframe"); 
 
     // Install + keep enforcing DOM rules (single observer)
