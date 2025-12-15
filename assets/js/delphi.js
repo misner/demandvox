@@ -12,16 +12,19 @@ function getDelphiMode(doc) {
 
   // CHAT view: conversation + composer
   if (doc.querySelector(".delphi-chat-conversation")) {
-    return "chat";
+    console.log("[delphi] entering Chat mode");
+    return "chat_mode";
   }
 
   // OVERVIEW / PROFILE view
   if (doc.querySelector(".delphi-profile-container")) {
-    return "overview";
+    console.log("[delphi] entering overview/profile mode");
+    return "overview_mode";
   }
 
   if (doc.querySelector(".delphi-call-container")) {
-    return "call";
+    console.log("[delphi] entering call mode");
+    return "call_mode";
   }
   return "unknown_mode";
 }
@@ -235,7 +238,7 @@ function enableIframeAutoResize(iframe) {
     () => {
       // Only disable auto-scroll if the user scrolls WHILE IN CHAT MODE
       // this ensures Scrolling on Profile does not poison Chat behavior
-      if (getDelphiMode(doc) === "chat") {
+      if (getDelphiMode(doc) === "chat_mode") {
         userHasScrolled = true;
       }
     },
