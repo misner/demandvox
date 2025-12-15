@@ -192,7 +192,6 @@ function enableIframeAutoResize(iframe) {
     console.warn("[delphi-resize] Failed to attach MutationObserver", e);
   }
 
-
   // Recalculate when viewport size changes
   window.addEventListener("resize", resizeIframe);
 
@@ -247,63 +246,71 @@ function preKillIframeScrollbar(iframe) {
 /********************************************************************
  * 3. Override Delphi copy
  ********************************************************************/
-function hideTitleInTextChat(iframe) {
+// function hideTitleInTextChat(iframe) {
+//   try {
+//     const doc = iframe.contentDocument || iframe.contentWindow?.document;
+//     if (!doc) return;
+
+//     const apply = () => {
+//       const h1 = doc.querySelector("h1.delphi-talk-title-text");
+//       if (!h1) return;
+
+//       // Keep layout space so other header items don't shift
+//       if (h1.style.visibility !== "hidden") {
+//         h1.style.visibility = "hidden";
+//         console.log("[delphi] Title hidden (layout preserved)");
+//       }
+//     };
+
+//     // Apply immediately
+//     apply();
+
+//     // Re-apply if Delphi re-renders the header
+//     const obs = new MutationObserver(apply);
+//     obs.observe(doc.body || doc.documentElement, { childList: true, subtree: true });
+//   } catch (e) {
+//     console.warn("[delphi] Failed to hide iframe title", e);
+//   }
+// }
+
+function editChatTitleInOverview(iframe) { 
+
+  let doc;
   try {
-    const doc = iframe.contentDocument || iframe.contentWindow?.document;
-    if (!doc) return;
-
-    const apply = () => {
-      const h1 = doc.querySelector("h1.delphi-talk-title-text");
-      if (!h1) return;
-
-      // Keep layout space so other header items don't shift
-      if (h1.style.visibility !== "hidden") {
-        h1.style.visibility = "hidden";
-        console.log("[delphi] Title hidden (layout preserved)");
-      }
-    };
-
-    // Apply immediately
-    apply();
-
-    // Re-apply if Delphi re-renders the header
-    const obs = new MutationObserver(apply);
-    obs.observe(doc.body || doc.documentElement, { childList: true, subtree: true });
+    doc = iframe.contentDocument || iframe.contentWindow?.document;
   } catch (e) {
-    console.warn("[delphi] Failed to hide iframe title", e);
+    console.warn("[delphi] Cannot access iframe doc", e);
+    return;
   }
-}
+  if (!doc) return;
 
-function editChatTitleinOverview(iframe) {
-  try {
-    const doc = iframe.contentDocument || iframe.contentWindow?.document;
-    if (!doc) return;
+  const apply = () => {
+    // Be as specific as possible to avoid touching other H1s
+    const h1 = doc.querySelector(".delphi-profile-container header h1.text-xl.font-medium");
+    if (!h1) return false;
 
-    const TARGET_TEXT = "Hi, I'm Michael,";
+    if (h1.textContent.trim() !== INTRO_TITLE) {
+      h1.textContent = INTRO_TITLE;
+      console.log("[delphi] Overview H1 updated");
+    }
+    return true;
+  };
 
-    const apply = () => {
-      const h1 = doc.querySelector(
-        ".delphi-profile-container h1.text-xl.font-medium"
-      );
+  // 1) Try immediately
+  if (apply()) return;
 
-      if (!h1) return;
+  // 2) If not yet there, observe briefly and disconnect as soon as it works
+  const root = doc.querySelector(".delphi-profile-container") || doc.body;
+  if (!root) return;
 
-      if (h1.textContent.trim() !== INTRO_TITLE) {
-        h1.textContent = INTRO_TITLE;
-        console.log("[delphi] Profile H1 overridden");
-      }
-    };
+  const obs = new MutationObserver(() => {
+    if (apply()) obs.disconnect();
+  });
 
-    // Apply immediately
-    apply();
+  obs.observe(root, { childList: true, subtree: true });
 
-    // Re-apply on route changes / React re-renders
-    const obs = new MutationObserver(apply);
-    obs.observe(doc.body, { childList: true, subtree: true });
-
-  } catch (e) {
-    console.warn("[delphi] Failed to override profile H1", e);
-  }
+  // Safety: disconnect after a short time to avoid long-running observers
+  setTimeout(() => obs.disconnect(), 5000);
 }
 
 /********************************************************************
@@ -354,6 +361,34 @@ function injectOverridesIntoIframe(iframe) {
       body::-webkit-scrollbar {
         display: none !important;              /* Chrome / Safari */
       }
+
+      /* Remove the left Delphi logo button (desktop) AND the mobile one */
+      button.delphi-header-logo {
+        display: none !important;
+      }
+      
+      /* Make the chat top nav a simple "left content / right actions" bar */
+      nav.from-sand-1.bg-sand-1.grid {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+      }
+      
+      /* Ensure the title block (avatar + hidden h1) sits on the left */
+      nav.from-sand-1.bg-sand-1 .delphi-talk-title-link {
+        justify-content: flex-start !important;
+        width: auto !important;
+      }
+      
+      /* Optional: avoid the middle container trying to center things */
+      nav.from-sand-1.bg-sand-1 [data-sentry-component="TalkTitle"] {
+        margin: 0 !important;
+      }
+      
+      /* Keep existing title invisibility (you already did it inline) */
+      h1.delphi-talk-title-text {
+        visibility: hidden !important;
+      }
     `;
 
     head.appendChild(style);
@@ -382,13 +417,16 @@ function injectOverridesIntoIframe(iframe) {
 document.addEventListener("DOMContentLoaded", () => {
   console.log("[delphi-styling] DOMContentLoaded");
 
-  // Delphi injects iframe dynamically → waiting for it
-  waitForIframe("#delphi-frame", injectOverridesIntoIframe);
   waitForIframe("#delphi-frame", (iframe) => {
+    // run once now
     injectOverridesIntoIframe(iframe);
-    //edit title in OVERVIEW profile
-    editChatTitleinOverview(iframe);
-    //hide Title in Text View
-    hideTitleInTextChat(iframe);
+    editChatTitleInOverview(iframe);
+  
+    // run again on every iframe document load
+    iframe.addEventListener("load", () => {
+      injectOverridesIntoIframe(iframe);
+      editChatTitleInOverview(iframe);
+    });
   });
+
 });
