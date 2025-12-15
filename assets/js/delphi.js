@@ -245,29 +245,64 @@ function preKillIframeScrollbar(iframe) {
 }
 
 /********************************************************************
- * 3. Override title
+ * 3. Override Delphi copy
  ********************************************************************/
-function overrideIframeTitle(iframe) {
+function hideTextChatIframeTitle(iframe) {
   try {
     const doc = iframe.contentDocument || iframe.contentWindow?.document;
     if (!doc) return;
 
     const apply = () => {
       const h1 = doc.querySelector("h1.delphi-talk-title-text");
-      if (h1 && h1.textContent.trim() !== INTRO_TITLE) {
-        h1.textContent = INTRO_TITLE;
-        console.log("[delphi] Title overridden:", INTRO_TITLE);
+      if (!h1) return;
+
+      // Keep layout space so other header items don't shift
+      if (h1.style.visibility !== "hidden") {
+        h1.style.visibility = "hidden";
+        console.log("[delphi] Title hidden (layout preserved)");
       }
     };
 
-    // Enforce mmediately
+    // Apply immediately
     apply();
 
     // Re-apply if Delphi re-renders the header
     const obs = new MutationObserver(apply);
     obs.observe(doc.body || doc.documentElement, { childList: true, subtree: true });
   } catch (e) {
-    console.warn("[delphi] Failed to override iframe title", e);
+    console.warn("[delphi] Failed to hide iframe title", e);
+  }
+}
+
+function editTextProfileIframeTitle(iframe) {
+  try {
+    const doc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!doc) return;
+
+    const TARGET_TEXT = "Hi, I'm Michael,";
+
+    const apply = () => {
+      const h1 = doc.querySelector(
+        ".delphi-profile-container h1.text-xl.font-medium"
+      );
+
+      if (!h1) return;
+
+      if (h1.textContent.trim() !== INTRO_TITLE) {
+        h1.textContent = INTRO_TITLE;
+        console.log("[delphi] Profile H1 overridden");
+      }
+    };
+
+    // Apply immediately
+    apply();
+
+    // Re-apply on route changes / React re-renders
+    const obs = new MutationObserver(apply);
+    obs.observe(doc.body, { childList: true, subtree: true });
+
+  } catch (e) {
+    console.warn("[delphi] Failed to override profile H1", e);
   }
 }
 
@@ -323,8 +358,8 @@ function injectOverridesIntoIframe(iframe) {
 
     head.appendChild(style);
     console.log("[delphi-styling] CSS injected into iframe");
-    //inject new title
-    overrideIframeTitle(iframe);
+    //hide TEXT-view title
+    hideTextChatIframeTitle(iframe);
 
     // Enable automatic resizing after CSS injection
     enableIframeAutoResize(iframe);
