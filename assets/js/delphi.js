@@ -163,11 +163,12 @@ function waitForIframe(selector, onFound) {
     if (iframe) {
       console.log("[delphi-styling] Iframe found:", iframe);
 
-      // Give the iframe an initial 80% viewport height
+      // Give the iframe an initial MIN_IFRAME_VIEWPORT_RATIO% viewport height
       // so there is no visible jump when resizeIframe() runs
       // - applied the moment the iframe appears, before it loads
       // prevents the "jump" when there are no messages
-      //(when no messages it used to jump from high up to bottom with our 80% of height rule
+      //(when no messages it used to jump from high up to bottom
+      // with our MIN_IFRAME_VIEWPORT_RATIO% of height rule
       const initialMinHeight = Math.floor(window.innerHeight * MIN_IFRAME_VIEWPORT_RATIO);
       iframe.style.minHeight = initialMinHeight + "px";
       iframe.style.height = initialMinHeight + "px";
@@ -189,7 +190,7 @@ function waitForIframe(selector, onFound) {
 /********************************************************************
  * Resize the iframe so scrolling happens on the high-level page
  *    (not inside the iframe) and enforce:
- *    - min height = 80% of viewport
+ *    - min height = MIN_IFRAME_VIEWPORT_RATIO% of viewport
  *    - grow with content
  *    - scroll to bottom once on load if user hasn’t scrolled
  ********************************************************************/
@@ -227,7 +228,7 @@ function enableIframeAutoResize(iframe) {
       //ensures layout stays consistent when Delphi loads content
       //Later, when messages exist OR when the user types, Delphi's
       //content height changes dynamically. At that point, the system must ensure:
-      // the iframe grows to fit content, BUT never shrinks below 80% of viewport height.
+      // the iframe grows to fit content, BUT never shrinks below MIN_IFRAME_VIEWPORT_RATIO% of viewport height.
       const minHeight = Math.floor(window.innerHeight * MIN_IFRAME_VIEWPORT_RATIO);
       const finalHeight = Math.max(contentHeight, minHeight);
   
