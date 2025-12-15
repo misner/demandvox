@@ -120,6 +120,10 @@ function ruleHideButKeepLayout({ name, selector }) {
  * Register all DOM enforcement rules
  ********************************************************************/
 function registerDelphiDomRules(iframe) {
+  //Add “install once” guard to DOM watcher runtime
+  if (iframe.__dvDomRulesInstalled) return;
+  iframe.__dvDomRulesInstalled = true;
+
   // Profile/Overview H1: "Hi, I'm Michael"
   addDelphiDomRule(
     iframe,
