@@ -410,46 +410,6 @@ function preKillIframeScrollbar(iframe) {
 //   }
 // }
 
-function editChatTitleInOverview(iframe) { 
-
-  let doc;
-  try {
-    doc = iframe.contentDocument || iframe.contentWindow?.document;
-  } catch (e) {
-    console.warn("[delphi] Cannot access iframe doc", e);
-    return;
-  }
-  if (!doc) return;
-
-  const apply = () => {
-    // Be as specific as possible to avoid touching other H1s
-    const h1 = doc.querySelector(".delphi-profile-container header h1.text-xl.font-medium");
-    if (!h1) return false;
-
-    if (h1.textContent.trim() !== INTRO_TITLE) {
-      h1.textContent = INTRO_TITLE;
-      console.log("[delphi] Overview H1 updated");
-    }
-    return true;
-  };
-
-  // 1) Try immediately
-  if (apply()) return;
-
-  // 2) If not yet there, observe briefly and disconnect as soon as it works
-  const root = doc.querySelector(".delphi-profile-container") || doc.body;
-  if (!root) return;
-
-  const obs = new MutationObserver(() => {
-    if (apply()) obs.disconnect();
-  });
-
-  obs.observe(root, { childList: true, subtree: true });
-
-  // Safety: disconnect after a short time to avoid long-running observers
-  setTimeout(() => obs.disconnect(), 5000);
-}
-
 /********************************************************************
  * Inject Over-rides into the iframe safely
  ********************************************************************/
@@ -550,11 +510,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   waitForIframe("#delphi-frame", (iframe) => {
     // CSS + layout overrides (safe to re-run)
-    injectOverridesIntoIframe(iframe);
-  
-    // Text/copy rules (self-healing via MutationObserver)
-    editChatTitleInOverview(iframe);
-  
+    injectOverridesIntoIframe(iframe);  
+ 
     // Re-run only CSS overrides on iframe reload
     iframe.addEventListener("load", () => {
       injectOverridesIntoIframe(iframe);
