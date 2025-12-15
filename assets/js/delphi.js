@@ -5,6 +5,28 @@ const MIN_IFRAME_VIEWPORT_RATIO = 0.87;
 const INTRO_TITLE = "Hi, I'm Michael";
 
 /********************************************************************
+ * Mode detector
+ ********************************************************************/
+function getDelphiMode(doc) {
+  if (!doc) return "unknown_mode";
+
+  // CHAT view: conversation + composer
+  if (doc.querySelector(".delphi-chat-conversation")) {
+    return "chat";
+  }
+
+  // OVERVIEW / PROFILE view
+  if (doc.querySelector(".delphi-profile-container")) {
+    return "overview";
+  }
+
+  if (doc.querySelector(".delphi-call-container")) {
+    return "call";
+  }
+  return "unknown_mode";
+}
+
+/********************************************************************
  * Delphi DOM Watchers (extensible rules, single observer)
  ********************************************************************/
 function getIframeDoc(iframe) {
@@ -207,14 +229,19 @@ function enableIframeAutoResize(iframe) {
   let firstAutoScrollDone = false;
   let userHasScrolled = false;
 
-  // Detect user scrolling – if user scrolls, we stop auto-scrolling
+  // Detect user scrolling – if user scrolls, we stop auto-scrolling - only in Chat Mode
   window.addEventListener(
     "scroll",
     () => {
-      userHasScrolled = true;
+      // Only disable auto-scroll if the user scrolls WHILE IN CHAT MODE
+      // this ensures Scrolling on Profile does not poison Chat behavior
+      if (getDelphiMode(doc) === "chat") {
+        userHasScrolled = true;
+      }
     },
     { passive: true }
   );
+  
 
   function resizeIframe() {
     try {
