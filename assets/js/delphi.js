@@ -4,9 +4,146 @@
 const MIN_IFRAME_VIEWPORT_RATIO = 0.87;
 const INTRO_TITLE = "Hi, I'm Michael";
 
+/********************************************************************
+ * Delphi DOM Watchers (extensible rules, single observer)
+ ********************************************************************/
+function getIframeDoc(iframe) {
+  try {
+    return iframe.contentDocument || iframe.contentWindow?.document || null;
+  } catch (e) {
+    console.warn("[delphi] Cannot access iframe document", e);
+    return null;
+  }
+}
+
+function ensureDelphiWatcherRuntime(iframe) {
+  const doc = getIframeDoc(iframe);
+  if (!doc || !doc.body) return null;
+
+  // Create a single runtime per iframe document
+  if (doc.__dvWatcherRuntime) return doc.__dvWatcherRuntime;
+
+  const runtime = {
+    installed: false,
+    rules: [],
+    runAll: null,
+  };
+
+  const runAll = () => {
+    for (const rule of runtime.rules) {
+      try {
+        rule.apply(doc);
+      } catch (e) {
+        console.warn(`[delphi] Rule failed: ${rule.name}`, e);
+      }
+    }
+  };
+  runtime.runAll = runAll;
+
+  // Debounced execution to reduce strain on heavy DOM churn
+  let scheduled = false;
+  const scheduleRun = () => {
+    if (scheduled) return;
+    scheduled = true;
+    requestAnimationFrame(() => {
+      scheduled = false;
+      runAll();
+    });
+  };
+
+  // Install one observer for everything we want to “enforce”
+  const obs = new MutationObserver(scheduleRun);
+  obs.observe(doc.body, { childList: true, subtree: true, characterData: true });
+
+  runtime.installed = true;
+  doc.__dvWatcherRuntime = runtime;
+
+  // Run once immediately as well
+  runAll();
+
+  return runtime;
+}
+
+function addDelphiDomRule(iframe, rule) {
+  const runtime = ensureDelphiWatcherRuntime(iframe);
+  if (!runtime) return;
+
+  // Avoid duplicates if inject runs multiple times
+  if (runtime.rules.some((r) => r.name === rule.name)) return;
+
+  runtime.rules.push(rule);
+
+  // Apply right away
+  runtime.runAll();
+}
 
 /********************************************************************
- * 1. Wait until iframe exists
+ * Rule builders
+ * Add reusable rule builders (so adding more later is easy)
+ *   Later, when you want more behaviors, you add more builders like: ruleSetAttribute,
+ *   ruleMoveElement, ruleSwapImageSrc, ruleRemoveElement …without adding more observers.
+ ********************************************************************/
+function ruleForceText({ name, selector, getText }) {
+  return {
+    name,
+    apply(doc) {
+      const el = doc.querySelector(selector);
+      if (!el) return;
+
+      const desired = String(getText());
+      const current = (el.textContent || "").trim();
+
+      if (current !== desired) {
+        el.textContent = desired;
+        console.log(`[delphi] ${name}: text updated`);
+      }
+    },
+  };
+}
+
+function ruleHideButKeepLayout({ name, selector }) {
+  return {
+    name,
+    apply(doc) {
+      const el = doc.querySelector(selector);
+      if (!el) return;
+
+      if (el.style.visibility !== "hidden") {
+        el.style.visibility = "hidden";
+        console.log(`[delphi] ${name}: hidden (layout preserved)`);
+      }
+    },
+  };
+}
+
+/********************************************************************
+ * Register all DOM enforcement rules
+ ********************************************************************/
+function registerDelphiDomRules(iframe) {
+  // Profile/Overview H1: "Hi, I'm Michael"
+  addDelphiDomRule(
+    iframe,
+    ruleForceText({
+      name: "overview-title",
+      selector: ".delphi-profile-container header h1.text-xl.font-medium",
+      getText: () => INTRO_TITLE,
+    })
+  );
+
+  // Chat header title: hide but keep layout (your existing requirement)
+  addDelphiDomRule(
+    iframe,
+    ruleHideButKeepLayout({
+      name: "chat-header-title-hidden",
+      selector: "h1.delphi-talk-title-text",
+    })
+  );
+}
+
+
+
+/********************************************************************
+ * Wait until iframe exists
  ********************************************************************/
 function waitForIframe(selector, onFound) {
   console.log("[delphi-styling] Waiting for iframe:", selector);
@@ -46,7 +183,7 @@ function waitForIframe(selector, onFound) {
 
 
 /********************************************************************
- * 2. Resize the iframe so scrolling happens on the high-level page
+ * Resize the iframe so scrolling happens on the high-level page
  *    (not inside the iframe) and enforce:
  *    - min height = 80% of viewport
  *    - grow with content
@@ -213,7 +350,7 @@ function enableIframeAutoResize(iframe) {
 }
 
 /********************************************************************
- * 2B. Pre-inject CSS IMMEDIATELY to kill iframe scrollbar
+ * Pre-inject CSS IMMEDIATELY to kill iframe scrollbar
  * This prevents the iframe scrollbar flash AND the scrollbar tip.
  ********************************************************************/
 function preKillIframeScrollbar(iframe) {
@@ -244,7 +381,7 @@ function preKillIframeScrollbar(iframe) {
 }
 
 /********************************************************************
- * 3. Override Delphi copy
+ * Override Delphi copy
  ********************************************************************/
 // function hideTitleInTextChat(iframe) {
 //   try {
@@ -314,7 +451,7 @@ function editChatTitleInOverview(iframe) {
 }
 
 /********************************************************************
- * 4. Inject Over-rides into the iframe safely
+ * Inject Over-rides into the iframe safely
  ********************************************************************/
 function injectOverridesIntoIframe(iframe) {
   console.log("[delphi-styling] injectOverridesIntoIframe called");
@@ -343,6 +480,7 @@ function injectOverridesIntoIframe(iframe) {
       return;
     }
 
+    // CSS injections
     const style = doc.createElement("style");
     style.textContent = `
       /* Example: styling access confirmed */
@@ -392,40 +530,34 @@ function injectOverridesIntoIframe(iframe) {
     `;
 
     head.appendChild(style);
-    console.log("[delphi-styling] CSS injected into iframe");    
+    console.log("[delphi-styling] CSS injected into iframe"); 
+
+    // Install + keep enforcing DOM rules (single observer)
+    registerDelphiDomRules(iframe);
 
     // Enable automatic resizing after CSS injection
     enableIframeAutoResize(iframe);
   }
 
-  // If iframe already loaded, inject immediately
-  if (iframe.contentDocument && iframe.contentDocument.readyState === "complete") {
-    console.log("[delphi-styling] iframe already complete");
-    doInject();
-  } else {
-    console.log("[delphi-styling] Waiting for iframe load");
-    iframe.addEventListener("load", () => {
-      console.log("[delphi-styling] iframe load event fired (inject)");
-      doInject();
-    });
-  }
+  doInject();
 }
 
 /********************************************************************
- * 4. Start execution once the DOM is ready
+ * Start execution once the DOM is ready
  ********************************************************************/
 document.addEventListener("DOMContentLoaded", () => {
   console.log("[delphi-styling] DOMContentLoaded");
 
   waitForIframe("#delphi-frame", (iframe) => {
-    // run once now
+    // CSS + layout overrides (safe to re-run)
     injectOverridesIntoIframe(iframe);
+  
+    // Text/copy rules (self-healing via MutationObserver)
     editChatTitleInOverview(iframe);
   
-    // run again on every iframe document load
+    // Re-run only CSS overrides on iframe reload
     iframe.addEventListener("load", () => {
       injectOverridesIntoIframe(iframe);
-      editChatTitleInOverview(iframe);
     });
   });
 
