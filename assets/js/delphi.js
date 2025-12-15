@@ -247,7 +247,7 @@ function preKillIframeScrollbar(iframe) {
 /********************************************************************
  * 3. Override Delphi copy
  ********************************************************************/
-function hideTextChatIframeTitle(iframe) {
+function hideTitleInTextChat(iframe) {
   try {
     const doc = iframe.contentDocument || iframe.contentWindow?.document;
     if (!doc) return;
@@ -274,7 +274,7 @@ function hideTextChatIframeTitle(iframe) {
   }
 }
 
-function editTextProfileIframeTitle(iframe) {
+function editChatTitleinOverview(iframe) {
   try {
     const doc = iframe.contentDocument || iframe.contentWindow?.document;
     if (!doc) return;
@@ -357,9 +357,7 @@ function injectOverridesIntoIframe(iframe) {
     `;
 
     head.appendChild(style);
-    console.log("[delphi-styling] CSS injected into iframe");
-    //hide TEXT-view title
-    hideTextChatIframeTitle(iframe);
+    console.log("[delphi-styling] CSS injected into iframe");    
 
     // Enable automatic resizing after CSS injection
     enableIframeAutoResize(iframe);
@@ -386,4 +384,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Delphi injects iframe dynamically → waiting for it
   waitForIframe("#delphi-frame", injectOverridesIntoIframe);
+  waitForIframe("#delphi-frame", (iframe) => {
+    injectOverridesIntoIframe(iframe);
+    //edit title in OVERVIEW profile
+    editChatTitleinOverview(iframe);
+    //hide Title in Text View
+    hideTitleInTextChat(iframe);
+  });
 });
