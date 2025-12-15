@@ -2,6 +2,7 @@
  * Constants
  ********************************************************************/
 const MIN_IFRAME_VIEWPORT_RATIO = 0.87;
+const INTRO_TITLE = "Hi, I'm Michael";
 
 
 /********************************************************************
@@ -243,12 +244,38 @@ function preKillIframeScrollbar(iframe) {
   }
 }
 
+/********************************************************************
+ * 3. Override title
+ ********************************************************************/
+function overrideIframeTitle(iframe) {
+  try {
+    const doc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!doc) return;
+
+    const apply = () => {
+      const h1 = doc.querySelector("h1.delphi-talk-title-text");
+      if (h1 && h1.textContent.trim() !== INTRO_TITLE) {
+        h1.textContent = INTRO_TITLE;
+        console.log("[delphi] Title overridden:", INTRO_TITLE);
+      }
+    };
+
+    // Enforce mmediately
+    apply();
+
+    // Re-apply if Delphi re-renders the header
+    const obs = new MutationObserver(apply);
+    obs.observe(doc.body || doc.documentElement, { childList: true, subtree: true });
+  } catch (e) {
+    console.warn("[delphi] Failed to override iframe title", e);
+  }
+}
 
 /********************************************************************
- * 3. Inject CSS into the iframe safely
+ * 4. Inject Over-rides into the iframe safely
  ********************************************************************/
-function injectCssIntoIframe(iframe) {
-  console.log("[delphi-styling] injectCssIntoIframe called");
+function injectOverridesIntoIframe(iframe) {
+  console.log("[delphi-styling] injectOverridesIntoIframe called");
 
   // Kill iframe scrollbar as early as possible
   preKillIframeScrollbar(iframe);
@@ -296,6 +323,8 @@ function injectCssIntoIframe(iframe) {
 
     head.appendChild(style);
     console.log("[delphi-styling] CSS injected into iframe");
+    //inject new title
+    overrideIframeTitle(iframe);
 
     // Enable automatic resizing after CSS injection
     enableIframeAutoResize(iframe);
@@ -314,7 +343,6 @@ function injectCssIntoIframe(iframe) {
   }
 }
 
-
 /********************************************************************
  * 4. Start execution once the DOM is ready
  ********************************************************************/
@@ -322,5 +350,5 @@ document.addEventListener("DOMContentLoaded", () => {
   console.log("[delphi-styling] DOMContentLoaded");
 
   // Delphi injects iframe dynamically → waiting for it
-  waitForIframe("#delphi-frame", injectCssIntoIframe);
+  waitForIframe("#delphi-frame", injectOverridesIntoIframe);
 });
