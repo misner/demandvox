@@ -189,8 +189,15 @@ function waitForIframe(selector, onFound) {
  *    - grow with content
  *    - scroll to bottom once on load if user hasn’t scrolled
  ********************************************************************/
-function enableIframeAutoResize(iframe) {
+function enableIframeAutoResize(iframe) {  
   console.log("[delphi-resize] Initializing auto-resize");
+
+  //Add "install once" guard to auto-resize
+  //First install still runs; Subsequent injects become no-ops; Prevents exponential listeners
+  if (iframe.__dvAutoResizeInstalled) {
+    return;
+  }
+  iframe.__dvAutoResizeInstalled = true;
 
   let firstAutoScrollDone = false;
   let userHasScrolled = false;
