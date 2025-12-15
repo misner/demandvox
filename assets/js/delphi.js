@@ -190,14 +190,7 @@ function waitForIframe(selector, onFound) {
  *    - scroll to bottom once on load if user hasn’t scrolled
  ********************************************************************/
 function enableIframeAutoResize(iframe) {
-  // Install-once guard (prevents duplicate listeners/intervals on repeated injects)
-  if (iframe.__dvAutoResizeInstalled) {
-    console.log("[delphi-resize] already installed, skipping");
-    return;
-  }
-  iframe.__dvAutoResizeInstalled = true;
-
-  console.log("[delphi-resize] enableIframeAutoResize installed");
+  console.log("[delphi-resize] Initializing auto-resize");
 
   let firstAutoScrollDone = false;
   let userHasScrolled = false;
@@ -369,14 +362,6 @@ function preKillIframeScrollbar(iframe) {
     const doc = iframe.contentDocument || iframe.contentWindow.document;
     if (!doc) return;
 
-    const STYLE_ID = "dv-scrollbar-kill";
-    let style = doc.getElementById(STYLE_ID);
-    if (!style) {
-      style = doc.createElement("style");
-      style.id = STYLE_ID;
-      doc.head.appendChild(style);
-    }
-
     const style = doc.createElement("style");
     style.textContent = `
       /* HARD override to remove scrollbars inside the iframe instantly */
@@ -393,6 +378,76 @@ function preKillIframeScrollbar(iframe) {
   } catch (e) {
     console.warn("[delphi-styling] Cannot pre-inject scrollbar-kill CSS", e);
   }
+}
+
+/********************************************************************
+ * Override Delphi copy
+ ********************************************************************/
+// function hideTitleInTextChat(iframe) {
+//   try {
+//     const doc = iframe.contentDocument || iframe.contentWindow?.document;
+//     if (!doc) return;
+
+//     const apply = () => {
+//       const h1 = doc.querySelector("h1.delphi-talk-title-text");
+//       if (!h1) return;
+
+//       // Keep layout space so other header items don't shift
+//       if (h1.style.visibility !== "hidden") {
+//         h1.style.visibility = "hidden";
+//         console.log("[delphi] Title hidden (layout preserved)");
+//       }
+//     };
+
+//     // Apply immediately
+//     apply();
+
+//     // Re-apply if Delphi re-renders the header
+//     const obs = new MutationObserver(apply);
+//     obs.observe(doc.body || doc.documentElement, { childList: true, subtree: true });
+//   } catch (e) {
+//     console.warn("[delphi] Failed to hide iframe title", e);
+//   }
+// }
+
+function editChatTitleInOverview(iframe) { 
+
+  let doc;
+  try {
+    doc = iframe.contentDocument || iframe.contentWindow?.document;
+  } catch (e) {
+    console.warn("[delphi] Cannot access iframe doc", e);
+    return;
+  }
+  if (!doc) return;
+
+  const apply = () => {
+    // Be as specific as possible to avoid touching other H1s
+    const h1 = doc.querySelector(".delphi-profile-container header h1.text-xl.font-medium");
+    if (!h1) return false;
+
+    if (h1.textContent.trim() !== INTRO_TITLE) {
+      h1.textContent = INTRO_TITLE;
+      console.log("[delphi] Overview H1 updated");
+    }
+    return true;
+  };
+
+  // 1) Try immediately
+  if (apply()) return;
+
+  // 2) If not yet there, observe briefly and disconnect as soon as it works
+  const root = doc.querySelector(".delphi-profile-container") || doc.body;
+  if (!root) return;
+
+  const obs = new MutationObserver(() => {
+    if (apply()) obs.disconnect();
+  });
+
+  obs.observe(root, { childList: true, subtree: true });
+
+  // Safety: disconnect after a short time to avoid long-running observers
+  setTimeout(() => obs.disconnect(), 5000);
 }
 
 /********************************************************************
@@ -414,31 +469,14 @@ function injectOverridesIntoIframe(iframe) {
       return;
     }
 
-    // Install-once guard per document
-    if (doc.__dvCssInstalled) {
-      console.log("[delphi-css] already installed for this document, updating instead");
-    } else {
-      doc.__dvCssInstalled = true;
-      console.log("[delphi-css] first install for this document");
-    }
-
-    // Create-or-update a single <style> node
-    const STYLE_ID = "dv-delphi-overrides";
-      let style = doc.getElementById(STYLE_ID);
-      if (!style) {
-        style = doc.createElement("style");
-      style.id = STYLE_ID;
-      doc.head.appendChild(style);
-    }  
-
-
     if (!doc) {
-      console.debug("[delphi-styling] iframe document not ready yet");
+      console.error("[delphi-styling] iframe document is NULL");
       return;
     }
-    
-    if (!doc.head) {
-      console.debug("[delphi-styling] iframe <head> not available yet");
+
+    const head = doc.head;
+    if (!head) {
+      console.error("[delphi-styling] No <head> in iframe doc");
       return;
     }
 
@@ -512,7 +550,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   waitForIframe("#delphi-frame", (iframe) => {
     // CSS + layout overrides (safe to re-run)
-    injectOverridesIntoIframe(iframe);  
+    injectOverridesIntoIframe(iframe);
+  
+    // Text/copy rules (self-healing via MutationObserver)
+    editChatTitleInOverview(iframe);
   
     // Re-run only CSS overrides on iframe reload
     iframe.addEventListener("load", () => {
