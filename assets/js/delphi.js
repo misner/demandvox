@@ -57,18 +57,15 @@ function getDelphiMode(doc) {
 
   // CHAT view: conversation + composer
   if (doc.querySelector(".delphi-chat-conversation")) {
-    dvLog("[delphi] entering Chat mode");
     return "chat_mode";
   }
 
   // OVERVIEW / PROFILE view
   if (doc.querySelector(".delphi-profile-container")) {
-    dvLog("[delphi] entering Overview/profile mode");
     return "overview_mode";
   }
 
   if (doc.querySelector(".delphi-call-container")) {
-    dvLog("[delphi] entering Call mode");
     return "call_mode";
   }
   return "unknown_mode";
@@ -477,6 +474,7 @@ function enableIframeAutoResize(iframe) {
    * We only react when the mode actually changes.
    ******************************************************************/
   let lastMode = getDelphiMode(doc);
+  dvLog("[delphi-resize] initial mode:", lastMode);
 
   /******************************************************************
    * Scroll state flags
@@ -521,7 +519,7 @@ function enableIframeAutoResize(iframe) {
      * - Only if iframe exceeds viewport height
      **************************************************************/
     if (
-      getDelphiMode(doc) === "chat" &&
+      getDelphiMode(doc) === "chat_mode" &&
       !userHasScrolled &&
       !firstAutoScrollDone &&
       finalHeight > window.innerHeight
@@ -540,7 +538,7 @@ function enableIframeAutoResize(iframe) {
   window.addEventListener(
     "scroll",
     () => {
-      if (getDelphiMode(doc) === "chat") {
+      if (getDelphiMode(doc) === "chat_mode") {
         userHasScrolled = true;
       }
     },
@@ -594,7 +592,7 @@ function enableIframeAutoResize(iframe) {
        * Reset scroll logic so the input field is visible
        * after layout stabilizes.
        **********************************************************/
-      if (mode === "chat") {
+      if (mode === "chat_mode") {
         userHasScrolled = false;
         firstAutoScrollDone = false;
 
