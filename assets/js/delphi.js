@@ -18,12 +18,12 @@ function getDelphiMode(doc) {
 
   // OVERVIEW / PROFILE view
   if (doc.querySelector(".delphi-profile-container")) {
-    console.log("[delphi] entering overview/profile mode");
+    console.log("[delphi] entering Overview/profile mode");
     return "overview_mode";
   }
 
   if (doc.querySelector(".delphi-call-container")) {
-    console.log("[delphi] entering call mode");
+    console.log("[delphi] entering Call mode");
     return "call_mode";
   }
   return "unknown_mode";
