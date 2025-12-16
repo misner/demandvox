@@ -253,6 +253,7 @@ function enableIframeAutoResize(iframe) {
         console.warn("[delphi-resize] No iframe document yet");
         return;
       }
+      let lastMode = getDelphiMode(doc);
       
       const contentHeight = doc.documentElement.scrollHeight;
       //ensures layout stays consistent when Delphi loads content
@@ -374,7 +375,7 @@ function enableIframeAutoResize(iframe) {
   // Recalculate when viewport size changes
   window.addEventListener("resize", resizeIframe);
 
-  // Periodic re-check in case Delphi changes layout after messages stream in
+  // Periodic re-check in case Delphi changes Mode after messages stream in
   setInterval(resizeIframe, 1500);
 
   // In case iframe is already fully loaded when we attach:
