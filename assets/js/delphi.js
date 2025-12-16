@@ -3,6 +3,7 @@
  ********************************************************************/
 const MIN_IFRAME_VIEWPORT_RATIO = 0.87;
 const INTRO_TITLE = "Hi, I'm Michael";
+const RESIZE_INTERVAL_MS = 1500;
 
 /********************************************************************
  * Mode detector
@@ -219,178 +220,353 @@ function waitForIframe(selector, onFound) {
  *    - grow with content
  *    - scroll to bottom once on load if user hasn’t scrolled
  ********************************************************************/
-function enableIframeAutoResize(iframe) {  
-  console.log("[delphi-resize] Initializing auto-resize");
+// function enableIframeAutoResize(iframe) {  
+//   console.log("[delphi-resize] Initializing auto-resize");
 
-  //Add "install once" guard to auto-resize
-  //First install still runs; Subsequent injects become no-ops; Prevents exponential listeners
-  if (iframe.__dvAutoResizeInstalled) {
-    return;
-  }
+//   //Add "install once" guard to auto-resize
+//   //First install still runs; Subsequent injects become no-ops; Prevents exponential listeners
+//   if (iframe.__dvAutoResizeInstalled) {
+//     return;
+//   }
+//   iframe.__dvAutoResizeInstalled = true;
+
+//   let firstAutoScrollDone = false;
+//   let userHasScrolled = false;
+
+//   // Detect user scrolling – if user scrolls, we stop auto-scrolling - only in Chat Mode
+//   window.addEventListener(
+//     "scroll",
+//     () => {
+//       // Only disable auto-scroll if the user scrolls WHILE IN CHAT MODE
+//       // this ensures Scrolling on Profile does not poison Chat behavior
+//       if (getDelphiMode(doc) === "chat_mode") {
+//         userHasScrolled = true;
+//       }
+//     },
+//     { passive: true }
+//   );
+ 
+
+//   function resizeIframe() {
+//     try {
+//       const doc = iframe.contentDocument || iframe.contentWindow.document;
+//       if (!doc) {
+//         console.warn("[delphi-resize] No iframe document yet");
+//         return;
+//       }
+      
+//       const contentHeight = doc.documentElement.scrollHeight;
+//       //ensures layout stays consistent when Delphi loads content
+//       //Later, when messages exist OR when the user types, Delphi's
+//       //content height changes dynamically. At that point, the system must ensure:
+//       // the iframe grows to fit content, BUT never shrinks below MIN_IFRAME_VIEWPORT_RATIO% of viewport height.
+//       const minHeight = Math.floor(window.innerHeight * MIN_IFRAME_VIEWPORT_RATIO);
+//       const finalHeight = Math.max(contentHeight, minHeight);
+  
+//       iframe.style.height = finalHeight + "px";
+//       iframe.style.maxHeight = "none";
+//       iframe.style.width = "100%";
+  
+//       console.log("[delphi-resize] Updated iframe height →", finalHeight);
+//     } catch (e) {
+//       console.error("[delphi-resize] Failed to resize iframe", e);
+//     }
+//   }
+
+//   // Scroll outer page so iframe bottom is aligned with viewport bottom
+//   function scrollOuterPageToIframeBottom() {
+//     const rect = iframe.getBoundingClientRect();
+//     const iframeBottomInPage = window.scrollY + rect.bottom;
+//     const targetScrollTop = iframeBottomInPage - window.innerHeight;
+
+//     if (targetScrollTop > 0) {
+//       console.log("[delphi-resize] Auto-scrolling outer page to", targetScrollTop);
+//       window.scrollTo({ top: targetScrollTop, behavior: "auto" });
+//       firstAutoScrollDone = true;
+//     } else {
+//       console.log("[delphi-resize] No auto-scroll needed (iframe shorter than viewport)");
+//     }
+//   }
+
+//   iframe.addEventListener("load", () => {
+//     console.log("[delphi-resize] iframe load event");
+//     // Only resize on load, do NOT auto-scroll here
+//     resizeIframe();
+//   });
+
+//   // Watch Delphi message list and react when new messages are added
+//   try {
+//     const doc = iframe.contentDocument || iframe.contentWindow.document;
+//     if (!doc) {
+//       console.warn("[delphi-resize] No doc for MutationObserver");
+//       return;
+//     }
+
+//     /**
+//      * Attach the observer to .delphi-chat-conversation once it exists.
+//      * Called both immediately and from a body-level observer.
+//      */
+//     function attachConversationObserverIfReady() {
+//       const conversation = doc.querySelector(".delphi-chat-conversation");
+//       if (!conversation) {
+//         return false;
+//       }
+
+//       console.log("[delphi-resize] Attaching MutationObserver to .delphi-chat-conversation");
+
+//       const observer = new MutationObserver((mutations) => {
+//         let hasAddedNodes = false;
+
+//         for (const m of mutations) {
+//           if (m.type === "childList" && m.addedNodes && m.addedNodes.length > 0) {
+//             hasAddedNodes = true;
+//             break;
+//           }
+//         }
+
+//         if (!hasAddedNodes) return;
+
+//         console.log("[delphi-resize] New Delphi messages detected → resizing + possible auto-scroll");
+//         resizeIframe();
+
+//         // Only auto-scroll if user has not started scrolling yet
+//         if (!firstAutoScrollDone && !userHasScrolled) {
+//           scrollOuterPageToIframeBottom();
+//         }
+//       });
+
+//       observer.observe(conversation, { childList: true });
+
+//       // NEW: do one immediate resize + auto-scroll when we first
+//       // discover the conversation (covers the "many messages already there" case)
+//       console.log("[delphi-resize] Conversation found → initial resize + possible auto-scroll");
+//       resizeIframe();
+//       if (!firstAutoScrollDone && !userHasScrolled) {
+//         scrollOuterPageToIframeBottom();
+//       }
+
+//       return true;
+//     }
+
+//     // 1) Try immediately (conversation may already be there)
+//     if (attachConversationObserverIfReady()) {
+//       // All good, no need for a second observer
+//       console.log("[delphi-resize] Conversation found immediately");
+//     } else {
+//       // 2) If not found yet, watch the whole body until it appears
+//       console.log("[delphi-resize] .delphi-chat-conversation not yet present → watching body");
+
+//       const bodyObserver = new MutationObserver(() => {
+//         if (attachConversationObserverIfReady()) {
+//           console.log("[delphi-resize] Conversation appeared later → body observer disconnected");
+//           bodyObserver.disconnect();
+//         }
+//       });
+
+//       bodyObserver.observe(doc.body || doc.documentElement, {
+//         childList: true,
+//         subtree: true,
+//       });
+//     }
+//   } catch (e) {
+//     console.warn("[delphi-resize] Failed to attach MutationObserver", e);
+//   }
+
+//   // Recalculate when viewport size changes
+//   window.addEventListener("resize", resizeIframe);
+
+//   // Periodic re-check in case Delphi changes Mode after messages stream in
+//   setInterval(resizeIframe, 1500);
+
+//   // In case iframe is already fully loaded when we attach:
+//   try {
+//     const readyDoc = iframe.contentDocument || iframe.contentWindow.document;
+//     if (readyDoc && readyDoc.readyState === "complete") {
+//       console.log("[delphi-resize] iframe already complete → initial resize only");
+//       // Only resize here, do NOT auto-scroll
+//       resizeIframe();
+//     }
+//   } catch (e) {
+//     console.warn("[delphi-resize] Initial immediate resize check failed", e);
+//   }
+
+// }
+
+function enableIframeAutoResize(iframe) {
+  /******************************************************************
+   * Install-once guard
+   * ---------------------------------------------------------------
+   * This function may be called multiple times:
+   * - iframe load
+   * - route/view changes inside Delphi
+   * - defensive re-initializations
+   *
+   * We must ensure auto-resize logic is installed only once
+   * per iframe instance to avoid duplicated intervals and listeners.
+   ******************************************************************/
+  if (iframe.__dvAutoResizeInstalled) return;
   iframe.__dvAutoResizeInstalled = true;
 
-  let firstAutoScrollDone = false;
-  let userHasScrolled = false;
+  /******************************************************************
+   * Access iframe document
+   * ---------------------------------------------------------------
+   * Required for:
+   * - reading content height
+   * - detecting Delphi "mode" (chat / overview / voice)
+   *
+   * If unavailable, resizing cannot function safely.
+   ******************************************************************/
+  const doc = iframe.contentDocument || iframe.contentWindow?.document;
+  if (!doc) {
+    console.warn("[delphi-resize] iframe document not available");
+    return;
+  }
 
-  // Detect user scrolling – if user scrolls, we stop auto-scrolling - only in Chat Mode
+  /******************************************************************
+   * Track current Delphi mode across executions
+   * ---------------------------------------------------------------
+   * Modes:
+   * - "chat"     → scrolling + input pinned behavior required
+   * - "overview" → static profile layout
+   * - "voice"    → different layout again
+   *
+   * We only react when the mode actually changes.
+   ******************************************************************/
+  let lastMode = getDelphiMode(doc);
+
+  /******************************************************************
+   * Scroll state flags
+   * ---------------------------------------------------------------
+   * userHasScrolled:
+   *   Becomes true once the user manually scrolls the outer page.
+   *   Prevents auto-scroll from fighting the user.
+   *
+   * firstAutoScrollDone:
+   *   Ensures we auto-scroll only once per chat entry.
+   ******************************************************************/
+  let userHasScrolled = false;
+  let firstAutoScrollDone = false;
+
+  /******************************************************************
+   * resizeIframe()
+   * ---------------------------------------------------------------
+   * Core resizing logic:
+   * - Ensure iframe is never smaller than MIN_IFRAME_VIEWPORT_RATIO% of viewport height
+   * - Grow naturally when content exceeds viewport
+   * - Perform controlled auto-scroll in chat mode only
+   ******************************************************************/
+  function resizeIframe() {
+    // Actual content height inside the iframe
+    const contentHeight = doc.documentElement.scrollHeight;
+
+    // Minimum height rule (chat UX requirement)
+    const minHeight = Math.floor(window.innerHeight * MIN_IFRAME_VIEWPORT_RATIO);
+
+    // Final height is the larger of content or minimum
+    const finalHeight = Math.max(contentHeight, minHeight);
+
+    iframe.style.height = finalHeight + "px";
+
+    /**************************************************************
+     * Auto-scroll logic
+     * -----------------------------------------------------------
+     * Conditions:
+     * - Only in chat mode
+     * - Only if user has NOT scrolled manually
+     * - Only once per chat entry
+     * - Only if iframe exceeds viewport height
+     **************************************************************/
+    if (
+      getDelphiMode(doc) === "chat" &&
+      !userHasScrolled &&
+      !firstAutoScrollDone &&
+      finalHeight > window.innerHeight
+    ) {
+      scrollOuterPageToIframeBottom();
+      firstAutoScrollDone = true;
+    }
+  }
+
+  /******************************************************************
+   * Detect manual user scroll
+   * ---------------------------------------------------------------
+   * If the user scrolls while in chat mode, we permanently disable
+   * auto-scroll for the current chat session.
+   ******************************************************************/
   window.addEventListener(
     "scroll",
     () => {
-      // Only disable auto-scroll if the user scrolls WHILE IN CHAT MODE
-      // this ensures Scrolling on Profile does not poison Chat behavior
-      if (getDelphiMode(doc) === "chat_mode") {
+      if (getDelphiMode(doc) === "chat") {
         userHasScrolled = true;
       }
     },
     { passive: true }
   );
-  
 
-  function resizeIframe() {
-    try {
-      const doc = iframe.contentDocument || iframe.contentWindow.document;
-      if (!doc) {
-        console.warn("[delphi-resize] No iframe document yet");
-        return;
-      }
-      let lastMode = getDelphiMode(doc);
-      
-      const contentHeight = doc.documentElement.scrollHeight;
-      //ensures layout stays consistent when Delphi loads content
-      //Later, when messages exist OR when the user types, Delphi's
-      //content height changes dynamically. At that point, the system must ensure:
-      // the iframe grows to fit content, BUT never shrinks below MIN_IFRAME_VIEWPORT_RATIO% of viewport height.
-      const minHeight = Math.floor(window.innerHeight * MIN_IFRAME_VIEWPORT_RATIO);
-      const finalHeight = Math.max(contentHeight, minHeight);
-  
-      iframe.style.height = finalHeight + "px";
-      iframe.style.maxHeight = "none";
-      iframe.style.width = "100%";
-  
-      console.log("[delphi-resize] Updated iframe height →", finalHeight);
-    } catch (e) {
-      console.error("[delphi-resize] Failed to resize iframe", e);
-    }
-  }
+  /******************************************************************
+   * Initial sizing
+   * ---------------------------------------------------------------
+   * Handles:
+   * - Page load
+   * - Direct deep links
+   * - Conversations with many existing messages
+   ******************************************************************/
+  resizeIframe();
 
-  // Scroll outer page so iframe bottom is aligned with viewport bottom
-  function scrollOuterPageToIframeBottom() {
-    const rect = iframe.getBoundingClientRect();
-    const iframeBottomInPage = window.scrollY + rect.bottom;
-    const targetScrollTop = iframeBottomInPage - window.innerHeight;
-
-    if (targetScrollTop > 0) {
-      console.log("[delphi-resize] Auto-scrolling outer page to", targetScrollTop);
-      window.scrollTo({ top: targetScrollTop, behavior: "auto" });
-      firstAutoScrollDone = true;
-    } else {
-      console.log("[delphi-resize] No auto-scroll needed (iframe shorter than viewport)");
-    }
-  }
-
-  iframe.addEventListener("load", () => {
-    console.log("[delphi-resize] iframe load event");
-    // Only resize on load, do NOT auto-scroll here
+  /******************************************************************
+   * Periodic reconciliation loop
+   * ---------------------------------------------------------------
+   * Why polling?
+   * - Delphi is a SPA
+   * - No stable events for:
+   *   - view changes
+   *   - message streaming
+   *   - layout recalculations
+   *
+   * Every 1.5s we:
+   * - Resize iframe
+   * - Detect mode changes
+   * - React only when mode changes
+   ******************************************************************/
+  iframe.__dvResizeIntervalId = setInterval(() => {
     resizeIframe();
-  });
 
-  // Watch Delphi message list and react when new messages are added
-  try {
-    const doc = iframe.contentDocument || iframe.contentWindow.document;
-    if (!doc) {
-      console.warn("[delphi-resize] No doc for MutationObserver");
-      return;
-    }
+    const mode = getDelphiMode(doc);
 
-    /**
-     * Attach the observer to .delphi-chat-conversation once it exists.
-     * Called both immediately and from a body-level observer.
-     */
-    function attachConversationObserverIfReady() {
-      const conversation = doc.querySelector(".delphi-chat-conversation");
-      if (!conversation) {
-        return false;
-      }
+    /**************************************************************
+     * Mode transition handling
+     * -----------------------------------------------------------
+     * Only triggered when Delphi switches view:
+     * - overview → chat
+     * - chat → overview
+     * - chat → voice
+     **************************************************************/
+    if (mode !== lastMode) {
+      console.log("[delphi-resize] mode change:", lastMode, "→", mode);
 
-      console.log("[delphi-resize] Attaching MutationObserver to .delphi-chat-conversation");
+      /**********************************************************
+       * Entering chat mode
+       * -------------------------------------------------------
+       * Reset scroll logic so the input field is visible
+       * after layout stabilizes.
+       **********************************************************/
+      if (mode === "chat") {
+        userHasScrolled = false;
+        firstAutoScrollDone = false;
 
-      const observer = new MutationObserver((mutations) => {
-        let hasAddedNodes = false;
-
-        for (const m of mutations) {
-          if (m.type === "childList" && m.addedNodes && m.addedNodes.length > 0) {
-            hasAddedNodes = true;
-            break;
-          }
-        }
-
-        if (!hasAddedNodes) return;
-
-        console.log("[delphi-resize] New Delphi messages detected → resizing + possible auto-scroll");
-        resizeIframe();
-
-        // Only auto-scroll if user has not started scrolling yet
-        if (!firstAutoScrollDone && !userHasScrolled) {
+        // Let React/layout settle before correcting scroll
+        setTimeout(() => {
+          resizeIframe();
           scrollOuterPageToIframeBottom();
-        }
-      });
-
-      observer.observe(conversation, { childList: true });
-
-      // NEW: do one immediate resize + auto-scroll when we first
-      // discover the conversation (covers the "many messages already there" case)
-      console.log("[delphi-resize] Conversation found → initial resize + possible auto-scroll");
-      resizeIframe();
-      if (!firstAutoScrollDone && !userHasScrolled) {
-        scrollOuterPageToIframeBottom();
+          firstAutoScrollDone = true;
+        }, 50);
       }
 
-      return true;
+      lastMode = mode;
     }
-
-    // 1) Try immediately (conversation may already be there)
-    if (attachConversationObserverIfReady()) {
-      // All good, no need for a second observer
-      console.log("[delphi-resize] Conversation found immediately");
-    } else {
-      // 2) If not found yet, watch the whole body until it appears
-      console.log("[delphi-resize] .delphi-chat-conversation not yet present → watching body");
-
-      const bodyObserver = new MutationObserver(() => {
-        if (attachConversationObserverIfReady()) {
-          console.log("[delphi-resize] Conversation appeared later → body observer disconnected");
-          bodyObserver.disconnect();
-        }
-      });
-
-      bodyObserver.observe(doc.body || doc.documentElement, {
-        childList: true,
-        subtree: true,
-      });
-    }
-  } catch (e) {
-    console.warn("[delphi-resize] Failed to attach MutationObserver", e);
-  }
-
-  // Recalculate when viewport size changes
-  window.addEventListener("resize", resizeIframe);
-
-  // Periodic re-check in case Delphi changes Mode after messages stream in
-  setInterval(resizeIframe, 1500);
-
-  // In case iframe is already fully loaded when we attach:
-  try {
-    const readyDoc = iframe.contentDocument || iframe.contentWindow.document;
-    if (readyDoc && readyDoc.readyState === "complete") {
-      console.log("[delphi-resize] iframe already complete → initial resize only");
-      // Only resize here, do NOT auto-scroll
-      resizeIframe();
-    }
-  } catch (e) {
-    console.warn("[delphi-resize] Initial immediate resize check failed", e);
-  }
-
+  }, RESIZE_INTERVAL_MS);
 }
+
 
 /********************************************************************
  * Pre-inject CSS IMMEDIATELY to kill iframe scrollbar
