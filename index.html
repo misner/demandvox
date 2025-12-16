@@ -109,21 +109,38 @@
             
                 const DELPHI_ID = isPreview
                   ? '03c5d73c-88e7-4d13-a9a9-5d4b0ad909a3'  // preview
-                  : '74a48d08-8808-4778-b367-a106b5a371e1'; // production
-             
+                  : '74a48d08-8808-4778-b367-a106b5a371e1'; // production                
+                
+                  window.delphi = {...(window.delphi ?? {}) };
+                  window.delphi.page = {
+                    config: DELPHI_ID,
+                    overrides: {
+                      landingPage: "OVERVIEW",
+                    },
+                    container: {
+                      width: "100%",
+                      height: "800px",
+                    },
+                  };
+               
+
+
+
+
+                
                 // Initialise the global delphi object
-                window.delphi = window.delphi || {};
-                window.delphi.page = {
-                  config: DELPHI_ID,
-                  overrides: {
-                    landingPage: 'OVERVIEW',
-                  },
-                  container: {
-                    width: '100%',
-                    //height: '100%',
-                    height: '800px',
-                  },
-                };
+                // window.delphi = window.delphi || {};
+                // window.delphi.page = {
+                //   config: DELPHI_ID,
+                //   overrides: {
+                //     landingPage: 'OVERVIEW',
+                //   },
+                //   container: {
+                //     width: '100%',
+                //     //height: '100%',
+                //     height: '800px',
+                //   },
+                // };
               </script>              
               <script id="delphi-page-bootstrap" src="https://embed.delphi.ai/loader.js"></script>
             </div>
