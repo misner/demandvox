@@ -6,6 +6,50 @@ const INTRO_TITLE = "Hi, I'm Michael";
 const RESIZE_INTERVAL_MS = 1500;
 
 /********************************************************************
+ * Environment + logging
+ * ------------------------------------------------------------------
+ * We want verbose logs on preview instances (*.pages.dev)
+ * to debug embed behavior, but silence logs on production domains.
+ *
+ * IMPORTANT:
+ * - Preview: hostname endsWith(".pages.dev")  → logs ON
+ * - Production: everything else               → logs OFF
+ ********************************************************************/
+function isPreviewHost() {
+  try {
+    return window.location.hostname.endsWith(".pages.dev");
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Debug flag used throughout this file.
+ * You can also override manually in DevTools if needed:
+ *   window.__DV_DEBUG__ = true;
+ */
+const DV_DEBUG = isPreviewHost() || Boolean(window.__DV_DEBUG__);
+
+/**
+ * Centralized logger (so production stays quiet).
+ * Keep usage consistent:
+ *   dvLog("[feature] message", extra)
+ *   dvWarn("[feature] warning", extra)
+ *   dvError("[feature] error", extra)  // usually still important in prod
+ */
+function dvLog(...args) {
+  if (DV_DEBUG) console.log(...args);
+}
+function dvWarn(...args) {
+  if (DV_DEBUG) console.warn(...args);
+}
+function dvError(...args) {
+  // keep errors even in production because they signal breakage.
+  // If you want them silent too, change this to: if (DV_DEBUG) console.error(...)
+  console.error(...args);
+}
+
+/********************************************************************
  * Mode detector
  ********************************************************************/
 function getDelphiMode(doc) {
@@ -13,18 +57,18 @@ function getDelphiMode(doc) {
 
   // CHAT view: conversation + composer
   if (doc.querySelector(".delphi-chat-conversation")) {
-    console.log("[delphi] entering Chat mode");
+    dvLog("[delphi] entering Chat mode");
     return "chat_mode";
   }
 
   // OVERVIEW / PROFILE view
   if (doc.querySelector(".delphi-profile-container")) {
-    console.log("[delphi] entering Overview/profile mode");
+    dvLog("[delphi] entering Overview/profile mode");
     return "overview_mode";
   }
 
   if (doc.querySelector(".delphi-call-container")) {
-    console.log("[delphi] entering Call mode");
+    dvLog("[delphi] entering Call mode");
     return "call_mode";
   }
   return "unknown_mode";
@@ -37,7 +81,7 @@ function getIframeDoc(iframe) {
   try {
     return iframe.contentDocument || iframe.contentWindow?.document || null;
   } catch (e) {
-    console.warn("[delphi] Cannot access iframe document", e);
+    dvWarn("[delphi] Cannot access iframe document", e);
     return null;
   }
 }
@@ -60,7 +104,7 @@ function ensureDelphiWatcherRuntime(iframe) {
       try {
         rule.apply(doc);
       } catch (e) {
-        console.warn(`[delphi] Rule failed: ${rule.name}`, e);
+        dvWarn(`[delphi] Rule failed: ${rule.name}`, e);
       }
     }
   };
@@ -121,7 +165,7 @@ function ruleForceText({ name, selector, getText }) {
 
       if (current !== desired) {
         el.textContent = desired;
-        console.log(`[delphi] ${name}: text updated`);
+        dvLog(`[delphi] ${name}: text updated`);
       }
     },
   };
@@ -136,7 +180,7 @@ function ruleHideButKeepLayout({ name, selector }) {
 
       if (el.style.visibility !== "hidden") {
         el.style.visibility = "hidden";
-        console.log(`[delphi] ${name}: hidden (layout preserved)`);
+        dvLog(`[delphi] ${name}: hidden (layout preserved)`);
       }
     },
   };
@@ -176,7 +220,7 @@ function registerDelphiDomRules(iframe) {
  * Wait until iframe exists
  ********************************************************************/
 function waitForIframe(selector, onFound) {
-  console.log("[delphi-styling] Waiting for iframe:", selector);
+  dvLog("[delphi-styling] Waiting for iframe:", selector);
 
   const MAX_TIME = 15000;  // 15s timeout
   const INTERVAL = 200;
@@ -187,7 +231,7 @@ function waitForIframe(selector, onFound) {
     const iframe = document.querySelector(selector);
 
     if (iframe) {
-      console.log("[delphi-styling] Iframe found:", iframe);
+      dvLog("[delphi-styling] Iframe found:", iframe);
 
       // Give the iframe an initial MIN_IFRAME_VIEWPORT_RATIO% viewport height
       // so there is no visible jump when resizeIframe() runs
@@ -206,7 +250,7 @@ function waitForIframe(selector, onFound) {
     }
 
     if (Date.now() - start > MAX_TIME) {
-      console.error("[delphi-styling] Timeout: iframe not found");
+      dvError("[delphi-styling] Timeout: iframe not found");
       clearInterval(timer);
     }
   }, INTERVAL);
@@ -221,7 +265,7 @@ function waitForIframe(selector, onFound) {
  *    - scroll to bottom once on load if user hasn’t scrolled
  ********************************************************************/
 // function enableIframeAutoResize(iframe) {  
-//   console.log("[delphi-resize] Initializing auto-resize");
+//   dvLog("[delphi-resize] Initializing auto-resize");
 
 //   //Add "install once" guard to auto-resize
 //   //First install still runs; Subsequent injects become no-ops; Prevents exponential listeners
@@ -251,7 +295,7 @@ function waitForIframe(selector, onFound) {
 //     try {
 //       const doc = iframe.contentDocument || iframe.contentWindow.document;
 //       if (!doc) {
-//         console.warn("[delphi-resize] No iframe document yet");
+//         dvWarn("[delphi-resize] No iframe document yet");
 //         return;
 //       }
       
@@ -267,9 +311,9 @@ function waitForIframe(selector, onFound) {
 //       iframe.style.maxHeight = "none";
 //       iframe.style.width = "100%";
   
-//       console.log("[delphi-resize] Updated iframe height →", finalHeight);
+//       dvLog("[delphi-resize] Updated iframe height →", finalHeight);
 //     } catch (e) {
-//       console.error("[delphi-resize] Failed to resize iframe", e);
+//       dvError("[delphi-resize] Failed to resize iframe", e);
 //     }
 //   }
 
@@ -280,16 +324,16 @@ function waitForIframe(selector, onFound) {
 //     const targetScrollTop = iframeBottomInPage - window.innerHeight;
 
 //     if (targetScrollTop > 0) {
-//       console.log("[delphi-resize] Auto-scrolling outer page to", targetScrollTop);
+//       dvLog("[delphi-resize] Auto-scrolling outer page to", targetScrollTop);
 //       window.scrollTo({ top: targetScrollTop, behavior: "auto" });
 //       firstAutoScrollDone = true;
 //     } else {
-//       console.log("[delphi-resize] No auto-scroll needed (iframe shorter than viewport)");
+//       dvLog("[delphi-resize] No auto-scroll needed (iframe shorter than viewport)");
 //     }
 //   }
 
 //   iframe.addEventListener("load", () => {
-//     console.log("[delphi-resize] iframe load event");
+//     dvLog("[delphi-resize] iframe load event");
 //     // Only resize on load, do NOT auto-scroll here
 //     resizeIframe();
 //   });
@@ -298,7 +342,7 @@ function waitForIframe(selector, onFound) {
 //   try {
 //     const doc = iframe.contentDocument || iframe.contentWindow.document;
 //     if (!doc) {
-//       console.warn("[delphi-resize] No doc for MutationObserver");
+//       dvWarn("[delphi-resize] No doc for MutationObserver");
 //       return;
 //     }
 
@@ -312,7 +356,7 @@ function waitForIframe(selector, onFound) {
 //         return false;
 //       }
 
-//       console.log("[delphi-resize] Attaching MutationObserver to .delphi-chat-conversation");
+//       dvLog("[delphi-resize] Attaching MutationObserver to .delphi-chat-conversation");
 
 //       const observer = new MutationObserver((mutations) => {
 //         let hasAddedNodes = false;
@@ -326,7 +370,7 @@ function waitForIframe(selector, onFound) {
 
 //         if (!hasAddedNodes) return;
 
-//         console.log("[delphi-resize] New Delphi messages detected → resizing + possible auto-scroll");
+//         dvLog("[delphi-resize] New Delphi messages detected → resizing + possible auto-scroll");
 //         resizeIframe();
 
 //         // Only auto-scroll if user has not started scrolling yet
@@ -339,7 +383,7 @@ function waitForIframe(selector, onFound) {
 
 //       // NEW: do one immediate resize + auto-scroll when we first
 //       // discover the conversation (covers the "many messages already there" case)
-//       console.log("[delphi-resize] Conversation found → initial resize + possible auto-scroll");
+//       dvLog("[delphi-resize] Conversation found → initial resize + possible auto-scroll");
 //       resizeIframe();
 //       if (!firstAutoScrollDone && !userHasScrolled) {
 //         scrollOuterPageToIframeBottom();
@@ -351,14 +395,14 @@ function waitForIframe(selector, onFound) {
 //     // 1) Try immediately (conversation may already be there)
 //     if (attachConversationObserverIfReady()) {
 //       // All good, no need for a second observer
-//       console.log("[delphi-resize] Conversation found immediately");
+//       dvLog("[delphi-resize] Conversation found immediately");
 //     } else {
 //       // 2) If not found yet, watch the whole body until it appears
-//       console.log("[delphi-resize] .delphi-chat-conversation not yet present → watching body");
+//       dvLog("[delphi-resize] .delphi-chat-conversation not yet present → watching body");
 
 //       const bodyObserver = new MutationObserver(() => {
 //         if (attachConversationObserverIfReady()) {
-//           console.log("[delphi-resize] Conversation appeared later → body observer disconnected");
+//           dvLog("[delphi-resize] Conversation appeared later → body observer disconnected");
 //           bodyObserver.disconnect();
 //         }
 //       });
@@ -369,7 +413,7 @@ function waitForIframe(selector, onFound) {
 //       });
 //     }
 //   } catch (e) {
-//     console.warn("[delphi-resize] Failed to attach MutationObserver", e);
+//     dvWarn("[delphi-resize] Failed to attach MutationObserver", e);
 //   }
 
 //   // Recalculate when viewport size changes
@@ -382,12 +426,12 @@ function waitForIframe(selector, onFound) {
 //   try {
 //     const readyDoc = iframe.contentDocument || iframe.contentWindow.document;
 //     if (readyDoc && readyDoc.readyState === "complete") {
-//       console.log("[delphi-resize] iframe already complete → initial resize only");
+//       dvLog("[delphi-resize] iframe already complete → initial resize only");
 //       // Only resize here, do NOT auto-scroll
 //       resizeIframe();
 //     }
 //   } catch (e) {
-//     console.warn("[delphi-resize] Initial immediate resize check failed", e);
+//     dvWarn("[delphi-resize] Initial immediate resize check failed", e);
 //   }
 
 // }
@@ -418,7 +462,7 @@ function enableIframeAutoResize(iframe) {
    ******************************************************************/
   const doc = iframe.contentDocument || iframe.contentWindow?.document;
   if (!doc) {
-    console.warn("[delphi-resize] iframe document not available");
+    dvWarn("[delphi-resize] iframe document not available");
     return;
   }
 
@@ -542,7 +586,7 @@ function enableIframeAutoResize(iframe) {
      * - chat → voice
      **************************************************************/
     if (mode !== lastMode) {
-      console.log("[delphi-resize] mode change:", lastMode, "→", mode);
+      dvLog("[delphi-resize] mode change:", lastMode, "→", mode);
 
       /**********************************************************
        * Entering chat mode
@@ -595,7 +639,7 @@ function preKillIframeScrollbar(iframe) {
     `;
     doc.head.appendChild(style);
   } catch (e) {
-    console.warn("[delphi-styling] Cannot pre-inject scrollbar-kill CSS", e);
+    dvWarn("[delphi-styling] Cannot pre-inject scrollbar-kill CSS", e);
   }
 }
 
@@ -614,7 +658,7 @@ function preKillIframeScrollbar(iframe) {
 //       // Keep layout space so other header items don't shift
 //       if (h1.style.visibility !== "hidden") {
 //         h1.style.visibility = "hidden";
-//         console.log("[delphi] Title hidden (layout preserved)");
+//         dvLog("[delphi] Title hidden (layout preserved)");
 //       }
 //     };
 
@@ -625,7 +669,7 @@ function preKillIframeScrollbar(iframe) {
 //     const obs = new MutationObserver(apply);
 //     obs.observe(doc.body || doc.documentElement, { childList: true, subtree: true });
 //   } catch (e) {
-//     console.warn("[delphi] Failed to hide iframe title", e);
+//     dvWarn("[delphi] Failed to hide iframe title", e);
 //   }
 // }
 
@@ -633,7 +677,7 @@ function preKillIframeScrollbar(iframe) {
  * Inject Over-rides into the iframe safely
  ********************************************************************/
 function injectOverridesIntoIframe(iframe) {
-  console.log("[delphi-styling] injectOverridesIntoIframe called");
+  dvLog("[delphi-styling] injectOverridesIntoIframe called");
 
   // Kill iframe scrollbar as early as possible
   preKillIframeScrollbar(iframe);
@@ -642,20 +686,20 @@ function injectOverridesIntoIframe(iframe) {
     let doc;
     try {
       doc = iframe.contentDocument || iframe.contentWindow.document;
-      console.log("[delphi-styling] iframe.contentDocument is:", doc);
+      dvLog("[delphi-styling] iframe.contentDocument is:", doc);
     } catch (e) {
-      console.error("[delphi-styling] Cannot access iframe document", e);
+      dvError("[delphi-styling] Cannot access iframe document", e);
       return;
     }
 
     if (!doc) {
-      console.error("[delphi-styling] iframe document is NULL");
+      dvError("[delphi-styling] iframe document is NULL");
       return;
     }
 
     const head = doc.head;
     if (!head) {
-      console.error("[delphi-styling] No <head> in iframe doc");
+      dvError("[delphi-styling] No <head> in iframe doc");
       return;
     }
 
@@ -716,7 +760,7 @@ function injectOverridesIntoIframe(iframe) {
       }
     `;
     
-    console.log("[delphi-styling] CSS injected into iframe"); 
+    dvLog("[delphi-styling] CSS injected into iframe"); 
 
     // Install + keep enforcing DOM rules (single observer)
     registerDelphiDomRules(iframe);
@@ -732,7 +776,7 @@ function injectOverridesIntoIframe(iframe) {
  * Start execution once the DOM is ready
  ********************************************************************/
 document.addEventListener("DOMContentLoaded", () => {
-  console.log("[delphi-styling] DOMContentLoaded");
+  dvLog("[delphi-styling] DOMContentLoaded");
 
   waitForIframe("#delphi-frame", (iframe) => {
     // CSS + layout overrides (safe to re-run)
