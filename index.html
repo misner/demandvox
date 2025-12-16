@@ -102,37 +102,29 @@
             
             <div> 
               <script id="delphi-page-script">
+
                 // Decide which ID to use based on hostname
                 const hostname = window.location.hostname;
-                const isPreview = hostname.endsWith(".pages.dev");
-              
+                const isPreview = hostname.endsWith('.pages.dev');
+            
                 const DELPHI_ID = isPreview
-                  ? "03c5d73c-88e7-4d13-a9a9-5d4b0ad909a3" // preview
-                  : "74a48d08-8808-4778-b367-a106b5a371e1"; // production
-              
-                /**
-                 * Delphi config (non-destructive merge) = state preservation across SPA view switches
-                 * - Preserves anything Delphi (or other scripts) already placed on window.delphi / window.delphi.page
-                 * - Only overrides the fields you explicitly set (config, overrides, container)
-                 */
-                window.delphi = {
-                  ...(window.delphi ?? {}),
-                  page: {
-                    ...(window.delphi?.page ?? {}),
-                    config: DELPHI_ID,
-                    overrides: {
-                      ...(window.delphi?.page?.overrides ?? {}),
-                      landingPage: "OVERVIEW",
-                    },
-                    container: {
-                      ...(window.delphi?.page?.container ?? {}),
-                      width: "100%",
-                      // height: "100%",
-                      height: "800px",
-                    },
+                  ? '03c5d73c-88e7-4d13-a9a9-5d4b0ad909a3'  // preview
+                  : '74a48d08-8808-4778-b367-a106b5a371e1'; // production    
+                
+                //Initialise the global delphi object
+                window.delphi = {...(window.delphi ?? {}) };
+                window.delphi.page = {
+                  config: DELPHI_ID,
+                  overrides: {
+                    landingPage: 'CHAT',
+                  },
+                  container: {
+                    width: '100%',
+                    //height: '100%',
+                    height: '800px',
                   },
                 };
-              </script>
+              </script> 
               <script id="delphi-page-bootstrap" src="https://embed.delphi.ai/loader.js"></script>
             </div>
             
