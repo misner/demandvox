@@ -490,6 +490,23 @@ function enableIframeAutoResize(iframe) {
   let firstAutoScrollDone = false;
 
   /******************************************************************
+   * Scroll outer page so iframe bottom aligns with viewport bottom
+   * ---------------------------------------------------------------
+   * This is what makes the chat input field visible without
+   * requiring the user to scroll manually.
+   ******************************************************************/
+  function scrollOuterPageToIframeBottom() {
+    const rect = iframe.getBoundingClientRect();
+    const iframeBottomInPage = window.scrollY + rect.bottom;
+    const targetScrollTop = iframeBottomInPage - window.innerHeight;
+  
+    if (targetScrollTop > 0) {
+      dvLog("[delphi-resize] Auto-scrolling outer page to", targetScrollTop);
+      window.scrollTo({ top: targetScrollTop, behavior: "auto" });
+    }
+  }
+  
+  /******************************************************************
    * resizeIframe()
    * ---------------------------------------------------------------
    * Core resizing logic:
