@@ -183,6 +183,53 @@ function ruleHideButKeepLayout({ name, selector }) {
   };
 }
 
+/**
+ * ---------------------------------------------------------------
+ * Call header (DESKTOP ONLY):
+ * Replace Delphi logo with "Back to Chat center"
+ *
+ * Mobile behavior:
+ * - No change (Delphi logo area remains hidden)
+ *
+ * Desktop behavior:
+ * - Chevron remains visible
+ * - Delphi logo is replaced with a text CTA
+ * ---------------------------------------------------------------
+ */
+function ruleCallHeaderBackToChatLink() {
+  return {
+    name: "call-header-back-to-chat-link",
+    selector: "header.delphi-call-header",
+    apply(doc) {
+      const header = doc.querySelector("header.delphi-call-header");
+      if (!header) return false;
+
+      // Target the Delphi logo link (desktop-only container)
+      const logoLink = header.querySelector(
+        "span.hidden.md\\:flex a[aria-label='Delphi']"
+      );
+      if (!logoLink) return false;
+
+      // Replace destination
+      logoLink.setAttribute("href", "/chat");
+
+      // Replace visual content
+      logoLink.innerHTML = "";
+      logoLink.textContent = "Back to Chat center";
+
+      // Styling consistent with header typography
+      logoLink.style.display = "inline-flex";
+      logoLink.style.alignItems = "center";
+      logoLink.style.fontSize = "14px";
+      logoLink.style.fontWeight = "500";
+      logoLink.style.whiteSpace = "nowrap";
+
+      return true;
+    },
+  };
+}
+
+
 /********************************************************************
  * Register all DOM enforcement rules
  ********************************************************************/
@@ -191,6 +238,8 @@ function registerDelphiDomRules(iframe) {
   if (iframe.__dvDomRulesInstalled) return;
   iframe.__dvDomRulesInstalled = true;
 
+  /* CHAT_mode view 
+  */
   // Profile/Overview H1: "Hi, I'm Michael"
   addDelphiDomRule(
     iframe,
@@ -209,6 +258,19 @@ function registerDelphiDomRules(iframe) {
       selector: "h1.delphi-talk-title-text",
     })
   );
+
+  /* CALL_mode view
+  */
+  // Call header: hide delphi logo, pic & green dot
+  addDelphiDomRule(
+    iframe,
+    ruleHideButKeepLayout({
+      name: "call-header-profile-block-hidden",
+      selector: "header.delphi-call-header .delphi-call-header-link",
+    })
+  );
+
+  addDelphiDomRule(iframe, ruleCallHeaderBackToChatLink());
 }
 
 
@@ -602,12 +664,14 @@ function injectOverridesIntoIframe(iframe) {
         margin: 0 !important;
       }
       
-      /* Keep existing title invisibility (you already did it inline) */
+      /* Keep existing title invisibility
+      (optional but harmless - alreayd done inline) */
       h1.delphi-talk-title-text {
         visibility: hidden !important;
       }
 
-      /* Keep existing title invisibility (you already did it inline) */
+      /* Keep existing title invisibility
+      (optional but harmless - alreayd done inline) */
       h1.delphi-call-header-title {
         visibility: hidden !important;
       }
