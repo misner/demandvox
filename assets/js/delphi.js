@@ -186,7 +186,7 @@ function ruleHideButKeepLayout({ name, selector }) {
 /**
  * ---------------------------------------------------------------
  * Call header (DESKTOP ONLY):
- * Replace Delphi logo with "Back to Chat center"
+ * Replace Delphi logo with "Back to chat"
  *
  * Mobile behavior:
  * - No change (Delphi logo area remains hidden)
@@ -199,35 +199,36 @@ function ruleHideButKeepLayout({ name, selector }) {
 function ruleCallHeaderBackToChatLink() {
   return {
     name: "call-header-back-to-chat-link",
-    selector: "header.delphi-call-header",
-    apply(doc) {
-      const header = doc.querySelector("header.delphi-call-header");
-      if (!header) return false;
 
-      // Target the Delphi logo link (desktop-only container)
-      const logoLink = header.querySelector(
-        "span.hidden.md\\:flex a[aria-label='Delphi']"
+    // More robust: just find the Delphi nav link inside the call header
+    selector: "header.delphi-call-header a[aria-label='Delphi']",
+
+    apply(el) {
+      // Make it behave like the chevron: go to chat
+      el.setAttribute("href", "/chat");
+
+      // Replace logo with text
+      el.textContent = "Back to Chat center";
+
+      // Remove ALL existing classes (logo-related, layout-related, etc.)
+      el.className = "";
+
+      // Apply only the desired typography + responsive visibility
+      // hidden on mobile, visible md+
+      el.classList.add(
+        "text-sand-11",
+        "hidden",
+        "text-sm",
+        "font-medium",
+        "md:block"
       );
-      if (!logoLink) return false;
 
-      // Replace destination
-      logoLink.setAttribute("href", "/chat");
-
-      // Replace visual content
-      logoLink.innerHTML = "";
-      logoLink.textContent = "Back to Chat center";
-
-      // Styling consistent with header typography
-      logoLink.style.display = "inline-flex";
-      logoLink.style.alignItems = "center";
-      logoLink.style.fontSize = "14px";
-      logoLink.style.fontWeight = "500";
-      logoLink.style.whiteSpace = "nowrap";
-
-      return true;
+      // Optional: prevent wrapping
+      el.style.whiteSpace = "nowrap";
     },
   };
 }
+
 
 
 /********************************************************************
