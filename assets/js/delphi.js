@@ -228,6 +228,12 @@ function ruleCallHeaderBackToChatLink() {
 
       // Optional, but harmless
       link.setAttribute("aria-label", "Back to Chat center");
+
+      // Hide the vertical divider next to the logo
+      const divider = link.closest("span")?.nextElementSibling;
+      if (divider && divider.getAttribute("role") === "presentation") {
+        divider.style.visibility = "hidden";
+      }
     },
   };
 }
