@@ -197,39 +197,40 @@ function ruleHideButKeepLayout({ name, selector }) {
  * ---------------------------------------------------------------
  */
 function ruleCallHeaderBackToChatLink() {
+  const selector = "header.delphi-call-header a[aria-label='Delphi']";
+
   return {
     name: "call-header-back-to-chat-link",
+    selector,
 
-    // More robust: just find the Delphi nav link inside the call header
-    selector: "header.delphi-call-header a[aria-label='Delphi']",
+    apply(doc) {
+      const link = doc.querySelector(selector);
+      if (!link) return;
 
-    apply(el) {
-      // Make it behave like the chevron: go to chat
-      el.setAttribute("href", "/chat");
+      // idempotency guard
+      if (link.__dvBackToChatApplied) return;
+      link.__dvBackToChatApplied = true;
 
-      // Replace logo with text
-      el.textContent = "Back to Chat center";
+      // Make it go where the chevron takes you
+      link.setAttribute("href", "/chat");
 
-      // Remove ALL existing classes (logo-related, layout-related, etc.)
-      el.className = "";
+      // Replace the SVG (and any children) with text
+      link.textContent = "Back to Chat center";
 
-      // Apply only the desired typography + responsive visibility
-      // hidden on mobile, visible md+
-      el.classList.add(
-        "text-sand-11",
-        "hidden",
-        "text-sm",
-        "font-medium",
-        "md:block"
-      );
+      // Reset classes then apply desired styling (desktop only)
+      link.className = "";
+      link.classList.add("text-sand-11", "hidden", "text-sm", "font-medium", "md:block");
 
-      // Optional: prevent wrapping
-      el.style.whiteSpace = "nowrap";
+      // Keep it from wrapping, and ensure it behaves like a text link
+      link.style.whiteSpace = "nowrap";
+      link.style.display = "inline-flex";
+      link.style.alignItems = "center";
+
+      // Optional, but harmless
+      link.setAttribute("aria-label", "Back to Chat center");
     },
   };
 }
-
-
 
 /********************************************************************
  * Register all DOM enforcement rules
