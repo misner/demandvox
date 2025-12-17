@@ -490,8 +490,6 @@ function enableIframeAutoResize(iframe) {
   }, RESIZE_INTERVAL_MS);
 }
 
-
-
 /********************************************************************
  * Pre-inject CSS IMMEDIATELY to kill iframe scrollbar
  * This prevents the iframe scrollbar flash AND the scrollbar tip.
@@ -522,36 +520,6 @@ function preKillIframeScrollbar(iframe) {
     dvWarn("[delphi-styling] Cannot pre-inject scrollbar-kill CSS", e);
   }
 }
-
-/********************************************************************
- * Override Delphi copy
- ********************************************************************/
-// function hideTitleInTextChat(iframe) {
-//   try {
-//     const doc = iframe.contentDocument || iframe.contentWindow?.document;
-//     if (!doc) return;
-
-//     const apply = () => {
-//       const h1 = doc.querySelector("h1.delphi-talk-title-text");
-//       if (!h1) return;
-
-//       // Keep layout space so other header items don't shift
-//       if (h1.style.visibility !== "hidden") {
-//         h1.style.visibility = "hidden";
-//         dvLog("[delphi] Title hidden (layout preserved)");
-//       }
-//     };
-
-//     // Apply immediately
-//     apply();
-
-//     // Re-apply if Delphi re-renders the header
-//     const obs = new MutationObserver(apply);
-//     obs.observe(doc.body || doc.documentElement, { childList: true, subtree: true });
-//   } catch (e) {
-//     dvWarn("[delphi] Failed to hide iframe title", e);
-//   }
-// }
 
 /********************************************************************
  * Inject Over-rides into the iframe safely
@@ -636,6 +604,11 @@ function injectOverridesIntoIframe(iframe) {
       
       /* Keep existing title invisibility (you already did it inline) */
       h1.delphi-talk-title-text {
+        visibility: hidden !important;
+      }
+
+      /* Keep existing title invisibility (you already did it inline) */
+      h1.delphi-call-header-title {
         visibility: hidden !important;
       }
     `;
