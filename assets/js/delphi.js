@@ -245,38 +245,31 @@ function ruleCallHeaderBackToChatLink() {
  */
 function ruleProfileHeaderHideDelphiLogo() {
   return {
-    name: "profile-header-delphi-logo-hidden-and-disabled",
+    name: "profile-header-delphi-logo-hidden",
 
-    // Scope specifically to Overview/Profile mode header
+    // Profile / Overview ONLY
+    selector: ".delphi-profile-container > header a[aria-label='Delphi']",
+
     apply(doc) {
-      const logoLink = doc.querySelector(
-        ".delphi-profile-container > header a[aria-label='Delphi']"
-      );
-      if (!logoLink) return false;
+      const el = doc.querySelector(this.selector);
+      if (!el) return;
 
-      // Make it invisible AND non-interactive
-      // (Using display:none removes click area entirely)
-      if (logoLink.style.display !== "none") {
-        logoLink.style.display = "none";
+      // 1. Hide visually BUT keep layout space
+      if (el.style.visibility !== "hidden") {
+        el.style.visibility = "hidden";
       }
 
-      // Defensive: even if display toggles later, ensure no interactions
-      if (logoLink.style.pointerEvents !== "none") {
-        logoLink.style.pointerEvents = "none";
+      // 2. Prevent any interaction
+      if (el.style.pointerEvents !== "none") {
+        el.style.pointerEvents = "none";
       }
 
-      // Defensive: remove navigation behavior if Delphi re-adds styling
-      if (logoLink.hasAttribute("href")) {
-        logoLink.removeAttribute("href");
-      }
-      logoLink.setAttribute("tabindex", "-1");
-      logoLink.setAttribute("aria-hidden", "true");
-
-      return true;
+      // 3. Defensive: prevent keyboard / navigation activation
+      el.removeAttribute("href");
+      el.removeAttribute("role");
     },
   };
 }
-
 
 /********************************************************************
  * Register all DOM enforcement rules
