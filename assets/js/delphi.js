@@ -594,7 +594,7 @@ function enableIframeAutoResize(iframe) {
    * - Grow with content of the active view
    * - Controlled auto-scroll in chat mode only
    ******************************************************************/
-  function () {
+  function resizeIframe() {
     const mode = getDelphiMode(doc);
 
     const minHeight = Math.floor(window.innerHeight * MIN_IFRAME_VIEWPORT_RATIO);
