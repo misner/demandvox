@@ -294,7 +294,7 @@ function ruleProfileHeaderHideDelphiLogo() {
   };
 }
 
-function ruleCallRemoveNameH2() {
+function ruleCallModeRemoveNameH2() {
   return ruleRemoveElement({
     name: "call-clone-indicator-name-h2-removed",
     selector:
@@ -356,7 +356,7 @@ function registerDelphiDomRules(iframe) {
 
   addDelphiDomRule(
     iframe,
-    ruleCallCloneIndicatorRemoveNameH2()
+    ruleCallModeRemoveNameH2()
   );
   
 }
