@@ -4,11 +4,12 @@
 const MIN_IFRAME_VIEWPORT_RATIO = 0.87;
 const INTRO_TITLE = "Hi, I'm Michael";
 const RESIZE_INTERVAL_MS = 1500;
+const IFRAME_GO_TO_PROFILE = "Back to chat center";
 
 /********************************************************************
  * Environment + logging
  * ------------------------------------------------------------------
- * We want verbose logs on preview instances (*.pages.dev)
+ * Enforce verbose logs on preview instances (*.pages.dev)
  * to debug embed behavior, but silence logs on production domains.
  *
  * IMPORTANT:
@@ -215,7 +216,7 @@ function ruleCallHeaderBackToChatLink() {
       link.setAttribute("href", "/chat");
 
       // Replace the SVG (and any children) with text
-      link.textContent = "Back to Chat center";
+      link.textContent = IFRAME_GO_TO_PROFILE;
 
       // Reset classes then apply desired styling (desktop only)
       link.className = "";
@@ -234,6 +235,32 @@ function ruleCallHeaderBackToChatLink() {
       if (divider && divider.getAttribute("role") === "presentation") {
         divider.style.visibility = "hidden";
       }
+    },
+  };
+}
+
+function ruleProfileHeaderHideDelphiLogo() {
+  return {
+    name: "profile-header-delphi-logo-hidden",
+    selector:
+      "header a[aria-label='Delphi']",
+
+    apply(el) {
+      // 1. Make it invisible but keep layout
+      el.style.visibility = "hidden";
+
+      // 2. Disable all mouse / touch interactions
+      el.style.pointerEvents = "none";
+
+      // 3. Defensive: remove navigation behavior
+      el.removeAttribute("href");
+      el.removeAttribute("role");
+
+      // 4. Accessibility: hide from screen readers
+      el.setAttribute("aria-hidden", "true");
+      el.setAttribute("tabindex", "-1");
+
+      return true;
     },
   };
 }
@@ -279,6 +306,15 @@ function registerDelphiDomRules(iframe) {
   );
 
   addDelphiDomRule(iframe, ruleCallHeaderBackToChatLink());
+
+  /* OVERVIEW_mode view
+  */
+  addDelphiDomRule(
+    iframe,
+    ruleProfileHeaderHideDelphiLogo()
+  );
+
+  
 }
 
 
