@@ -53,22 +53,67 @@ function dvError(...args) {
 /********************************************************************
  * Mode detector
  ********************************************************************/
+// function getDelphiMode(doc) {
+//   if (!doc) return "unknown_mode";
+
+//   // CHAT view: conversation + composer
+//   if (doc.querySelector(".delphi-chat-conversation")) {
+//     return "chat_mode";
+//   }
+
+//   // OVERVIEW / PROFILE view
+//   if (doc.querySelector(".delphi-profile-container")) {
+//     return "overview_mode";
+//   }
+
+//   if (doc.querySelector(".delphi-call-container")) {
+//     return "call_mode";
+//   }
+//   return "unknown_mode";
+// }
+
+function isElementVisible(el, view) {
+  if (!el) return false;
+  try {
+    const cs = view?.getComputedStyle ? view.getComputedStyle(el) : null;
+    if (cs) {
+      if (cs.display === "none") return false;
+      if (cs.visibility === "hidden") return false;
+    }
+    // getClientRects() is a good proxy for "is it currently rendered/laid out"
+    return el.getClientRects().length > 0;
+  } catch {
+    // If we cannot compute, fallback to presence
+    return true;
+  }
+}
+
+function queryVisible(doc, selector) {
+  const view = doc?.defaultView || window;
+  const el = doc?.querySelector(selector);
+  return isElementVisible(el, view) ? el : null;
+}
+
 function getDelphiMode(doc) {
   if (!doc) return "unknown_mode";
 
-  // CHAT view: conversation + composer
-  if (doc.querySelector(".delphi-chat-conversation")) {
+  // Prefer "what is visible" rather than "what exists in DOM"
+  // because Delphi is a SPA and can keep previous screens mounted.
+
+  // 1) Call mode
+  if (queryVisible(doc, ".delphi-call-container")) return "call_mode";
+
+  // 2) Chat mode
+  if (
+    queryVisible(doc, ".delphi-chat-conversation") ||
+    queryVisible(doc, "[data-sentry-component='Talk']")
+  ) {
     return "chat_mode";
   }
 
-  // OVERVIEW / PROFILE view
-  if (doc.querySelector(".delphi-profile-container")) {
-    return "overview_mode";
-  }
+  // 3) Overview / Profile mode
+  if (queryVisible(doc, ".delphi-profile-container")) return "overview_mode";
 
-  if (doc.querySelector(".delphi-call-container")) {
-    return "call_mode";
-  }
   return "unknown_mode";
 }
 
@@ -498,22 +543,44 @@ function enableIframeAutoResize(iframe) {
    *
    * So we try to measure the active view container first.
    ******************************************************************/
+  // function getActiveHeightRoot(mode) {
+  //   if (mode === "chat_mode") {
+  //     // Prefer the chat view container if present
+  //     return (
+  //       doc.querySelector(".delphi-chat-conversation") ||
+  //       doc.querySelector("[data-sentry-component='Talk']") ||
+  //       doc.body
+  //     );
+  //   }
+
+  //   if (mode === "overview_mode") {
+  //     return doc.querySelector(".delphi-profile-container") || doc.body;
+  //   }
+
+  //   if (mode === "call_mode") {
+  //     return doc.querySelector(".delphi-call-container") || doc.body;
+  //   }
+
+  //   return doc.body || doc.documentElement;
+  // }
+
   function getActiveHeightRoot(mode) {
+    // Match the (now visibility-based) mode detection.
+    // This prevents “mounted but hidden” screens from polluting height.
+    if (mode === "call_mode") {
+      return queryVisible(doc, ".delphi-call-container") || doc.body;
+    }
+
     if (mode === "chat_mode") {
-      // Prefer the chat view container if present
       return (
-        doc.querySelector(".delphi-chat-conversation") ||
-        doc.querySelector("[data-sentry-component='Talk']") ||
+        queryVisible(doc, ".delphi-chat-conversation") ||
+        queryVisible(doc, "[data-sentry-component='Talk']") ||
         doc.body
       );
     }
 
     if (mode === "overview_mode") {
-      return doc.querySelector(".delphi-profile-container") || doc.body;
-    }
-
-    if (mode === "call_mode") {
-      return doc.querySelector(".delphi-call-container") || doc.body;
+      return queryVisible(doc, ".delphi-profile-container") || doc.body;
     }
 
     return doc.body || doc.documentElement;
@@ -527,7 +594,7 @@ function enableIframeAutoResize(iframe) {
    * - Grow with content of the active view
    * - Controlled auto-scroll in chat mode only
    ******************************************************************/
-  function resizeIframe() {
+  function () {
     const mode = getDelphiMode(doc);
 
     const minHeight = Math.floor(window.innerHeight * MIN_IFRAME_VIEWPORT_RATIO);
@@ -637,6 +704,17 @@ function enableIframeAutoResize(iframe) {
         }, 150);
       }
 
+      // Ensure call_mode height is recalculated fresh after layout settles,
+      // regardless of previous mode (fixes “inherits overview height”).
+      if (mode === "call_mode") {
+        setTimeout(() => resizeIframe(), 50);
+        setTimeout(() => resizeIframe(), 200);
+      }
+
+      if (mode === "overview_mode") {
+        setTimeout(() => resizeIframe(), 50);
+      }
+      
       lastMode = mode;
     }
   }, RESIZE_INTERVAL_MS);
