@@ -300,7 +300,7 @@ function ruleProfileHeaderHideDelphiLogo() {
 
 function ruleCallModeRemoveNameH2() {
   return ruleRemoveElement({
-    name: "call-clone-indicator-name-h2-removed",
+    name: "call-mode-name-h2-removed",
     selector:
       "div.delphi-call-container h2.delphi-call-clone-indicator-title",
   });
