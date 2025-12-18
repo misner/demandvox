@@ -184,6 +184,22 @@ function ruleHideButKeepLayout({ name, selector }) {
   };
 }
 
+function ruleRemoveElement({ name, selector }) {
+  return {
+    name,
+
+    apply(doc) {
+      const el = doc.querySelector(selector);
+      if (!el) return;
+
+      // Remove element entirely from the DOM
+      el.remove();
+
+      dvLog(`[delphi] ${name}: element removed from DOM`);
+    },
+  };
+}
+
 /**
  * ---------------------------------------------------------------
  * Call header (DESKTOP ONLY):
@@ -292,10 +308,18 @@ function registerDelphiDomRules(iframe) {
   );
 
   // Chat header title: hide but keep layout (your existing requirement)
+  // addDelphiDomRule(
+  //   iframe,
+  //   ruleHideButKeepLayout({
+  //     name: "chat-header-title-hidden",
+  //     selector: "h1.delphi-talk-title-text",
+  //   })
+  // );
+
   addDelphiDomRule(
     iframe,
-    ruleHideButKeepLayout({
-      name: "chat-header-title-hidden",
+    ruleRemoveElement({
+      name: "chat-header-title-removed",
       selector: "h1.delphi-talk-title-text",
     })
   );
@@ -324,8 +348,6 @@ function registerDelphiDomRules(iframe) {
   );
   
 }
-
-
 
 /********************************************************************
  * Wait until iframe exists
@@ -716,7 +738,8 @@ function injectOverridesIntoIframe(iframe) {
         margin: 0 !important;
       }
       
-      /* Keep existing title invisibility
+      /* Set as invisible to make sure ven if we remove
+      that it does not appear for a quick second before removal
       (optional but harmless - alreayd done inline) */
       h1.delphi-talk-title-text {
         visibility: hidden !important;
