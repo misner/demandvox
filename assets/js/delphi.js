@@ -53,25 +53,6 @@ function dvError(...args) {
 /********************************************************************
  * Mode detector
  ********************************************************************/
-// function getDelphiMode(doc) {
-//   if (!doc) return "unknown_mode";
-
-//   // CHAT view: conversation + composer
-//   if (doc.querySelector(".delphi-chat-conversation")) {
-//     return "chat_mode";
-//   }
-
-//   // OVERVIEW / PROFILE view
-//   if (doc.querySelector(".delphi-profile-container")) {
-//     return "overview_mode";
-//   }
-
-//   if (doc.querySelector(".delphi-call-container")) {
-//     return "call_mode";
-//   }
-//   return "unknown_mode";
-// }
-
 function isElementVisible(el, view) {
   if (!el) return false;
   try {
@@ -411,6 +392,19 @@ function registerDelphiDomRules(iframe) {
 }
 
 /********************************************************************
+ * Iframe Helpers
+ ********************************************************************/
+// Hide the iframe only during the call-mode reflow, then show it
+// to prevent the flicker that comes with the fact that when delphi changes modes (call, overview...)
+// we temporarily set the iframe height to a smaller baseline, then Delphi reflows and we expand again
+function setIframeBusy(iframe, isBusy) {
+  if (!iframe) return;
+  iframe.style.transition = "opacity 120ms ease";
+  iframe.style.opacity = isBusy ? "0" : "1";
+  iframe.style.pointerEvents = isBusy ? "none" : "auto";
+}
+
+/********************************************************************
  * Wait until iframe exists
  ********************************************************************/
 function waitForIframe(selector, onFound) {
@@ -542,28 +536,7 @@ function enableIframeAutoResize(iframe) {
    * mounted in the DOM.
    *
    * So we try to measure the active view container first.
-   ******************************************************************/
-  // function getActiveHeightRoot(mode) {
-  //   if (mode === "chat_mode") {
-  //     // Prefer the chat view container if present
-  //     return (
-  //       doc.querySelector(".delphi-chat-conversation") ||
-  //       doc.querySelector("[data-sentry-component='Talk']") ||
-  //       doc.body
-  //     );
-  //   }
-
-  //   if (mode === "overview_mode") {
-  //     return doc.querySelector(".delphi-profile-container") || doc.body;
-  //   }
-
-  //   if (mode === "call_mode") {
-  //     return doc.querySelector(".delphi-call-container") || doc.body;
-  //   }
-
-  //   return doc.body || doc.documentElement;
-  // }
-
+   ******************************************************************/  
   function getActiveHeightRoot(mode) {
     // Match the (now visibility-based) mode detection.
     // This prevents “mounted but hidden” screens from polluting height.
@@ -710,26 +683,36 @@ function enableIframeAutoResize(iframe) {
       const minHeightOnModeEntry = Math.floor(
         window.innerHeight * MIN_IFRAME_VIEWPORT_RATIO
       );      
-      if (mode === "call_mode" || mode === "overview_mode") {
+      if (mode === "call_mode") {
+        // Hide during the dvh-breaking resize sequence (prevents visible jump)
+        setIframeBusy(iframe, true);
+      
         iframe.style.height = minHeightOnModeEntry + "px";
-        dvLog(
-          "[delphi-resize] pre-reset iframe height:",
-          minHeightOnModeEntry,
-          "for",
-          mode
-        );
-      }      
+        dvLog("[delphi-resize] pre-reset iframe height:", minHeightOnModeEntry, "for", mode);
+      
+        // Run a few resizes, then reveal
+        setTimeout(() => resizeIframe(), 50);
+        setTimeout(() => resizeIframe(), 200);
+        setTimeout(() => {
+          resizeIframe();
+          setIframeBusy(iframe, false);
+        }, 350);
+      } else if (mode === "overview_mode") {
+        // Overview may also benefit from a pre-reset, but it’s usually less visually jarring
+        iframe.style.height = minHeightOnModeEntry + "px";
+        setTimeout(() => resizeIframe(), 50);
+      }
       
       // Ensure call_mode height is recalculated fresh after layout settles,
       // regardless of previous mode (fixes “inherits overview height”).
-      if (mode === "call_mode") {
-        setTimeout(() => resizeIframe(), 50);
-        //setTimeout(() => resizeIframe(), 200);
-      }
+      // if (mode === "call_mode") {
+      //   setTimeout(() => resizeIframe(), 50);
+      //   setTimeout(() => resizeIframe(), 200);
+      // }
 
-      if (mode === "overview_mode") {
-        setTimeout(() => resizeIframe(), 50);
-      }
+      // if (mode === "overview_mode") {
+      //   setTimeout(() => resizeIframe(), 50);
+      // }
       
       lastMode = mode;
     }
