@@ -659,11 +659,12 @@ function enableIframeAutoResize(iframe) {
       /**********************************************************
        * Entering chat mode
        * -------------------------------------------------------
-       * We force a fresh scroll correction regardless of height.
+       * We force a fresh scroll correction regardless of height
+       * to reach the input field.
        * This fixes the case: start in overview, click Chat, and
        * the composer is below the fold.
        **********************************************************/
-      //if (mode === "chat_mode") {
+      if (mode === "chat_mode") {
         userHasScrolled = false;
         firstAutoScrollDone = false;
 
@@ -675,7 +676,7 @@ function enableIframeAutoResize(iframe) {
           scrollOuterPageToIframeBottom();
           firstAutoScrollDone = true;
         }, 150);
-      //}      
+      }      
 
       // Some Delphi views (notably call/overview) use viewport-tied heights (e.g., h-dvh).
       // If we carry over the previous iframe height, the embedded "dvh" becomes that old height,
@@ -683,19 +684,19 @@ function enableIframeAutoResize(iframe) {
       const minHeightOnModeEntry = Math.floor(
         window.innerHeight * MIN_IFRAME_VIEWPORT_RATIO
       );      
-      // if (mode === "call_mode" || mode === "overview_mode") {
-      //   // Hide during the dvh-breaking resize sequence (prevents visible jump)
-      //   setIframeBusy(iframe, true);
+      if (mode === "call_mode" || mode === "overview_mode") {
+        // Hide during the dvh-breaking resize sequence (prevents visible jump)
+        setIframeBusy(iframe, true);
       
-      //   iframe.style.height = minHeightOnModeEntry + "px";
-      //   dvLog("[delphi-resize] pre-reset iframe height:", minHeightOnModeEntry, "for", mode);
+        iframe.style.height = minHeightOnModeEntry + "px";
+        dvLog("[delphi-resize] pre-reset iframe height:", minHeightOnModeEntry, "for", mode);
       
-      //   // Run a resize, then reveal
-      //   setTimeout(() => {
-      //     resizeIframe();
-      //     setIframeBusy(iframe, false);
-      //   }, 50);
-      // }       
+        // Run a resize, then reveal
+        setTimeout(() => {
+          resizeIframe();
+          setIframeBusy(iframe, false);
+        }, 50);
+      }       
       
       lastMode = mode;
     }
