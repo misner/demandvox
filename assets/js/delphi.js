@@ -194,18 +194,22 @@ function ruleHideButKeepLayout({ name, selector }) {
 function ruleRemoveElement({ name, selector }) {
   return {
     name,
-
     apply(doc) {
       const el = doc.querySelector(selector);
       if (!el) return;
 
+      // Idempotency guard in case the node is re-mounted quickly
+      if (el.__dvRemoved) return;
+      el.__dvRemoved = true;
+
       // Remove element entirely from the DOM
       el.remove();
-
+      
       dvLog(`[delphi] ${name}: element removed from DOM`);
     },
   };
 }
+
 
 /**
  * ---------------------------------------------------------------
