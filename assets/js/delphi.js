@@ -691,12 +691,12 @@ function enableIframeAutoResize(iframe) {
         dvLog("[delphi-resize] pre-reset iframe height:", minHeightOnModeEntry, "for", mode);
       
         // Run a few resizes, then reveal
-        setTimeout(() => resizeIframe(), 50);
-        setTimeout(() => resizeIframe(), 200);
+        //setTimeout(() => resizeIframe(), 50);
+        //setTimeout(() => resizeIframe(), 200);
         setTimeout(() => {
           resizeIframe();
           setIframeBusy(iframe, false);
-        }, 350);
+        }, 50);
       } else if (mode === "overview_mode") {
         // Overview may also benefit from a pre-reset, but it’s usually less visually jarring
         iframe.style.height = minHeightOnModeEntry + "px";
