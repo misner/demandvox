@@ -708,7 +708,7 @@ function enableIframeAutoResize(iframe) {
       // If we carry over the previous iframe height, the embedded "dvh" becomes that old height,
       // and the view will never shrink. Pre-reset the iframe height on mode entry to break that loop.
       const minHeightOnModeEntry = Math.floor(
-        window.innerHeight //* MIN_IFRAME_VIEWPORT_RATIO
+        window.innerHeight * MIN_IFRAME_VIEWPORT_RATIO
       );      
       if (mode === "call_mode" || mode === "overview_mode") {
         iframe.style.height = minHeightOnModeEntry + "px";
@@ -724,7 +724,7 @@ function enableIframeAutoResize(iframe) {
       // regardless of previous mode (fixes “inherits overview height”).
       if (mode === "call_mode") {
         setTimeout(() => resizeIframe(), 50);
-        setTimeout(() => resizeIframe(), 200);
+        //setTimeout(() => resizeIframe(), 200);
       }
 
       if (mode === "overview_mode") {
