@@ -239,24 +239,23 @@ function ruleCallHeaderBackToChatLink() {
   };
 }
 
+/**
+ * Hide Delphi logo in PROFILE / OVERVIEW header
+ * while keeping layout stable and removing interaction.
+ */
 function ruleProfileHeaderHideDelphiLogo() {
   return {
     name: "profile-header-delphi-logo-hidden",
-    selector:
-      "header a[aria-label='Delphi']",
+
+    // Profile/overview-only anchor: the logo is inside the profile container header
+    selector: ".delphi-profile-container > header a[aria-label='Delphi']",
 
     apply(el) {
-      // 1. Make it invisible but keep layout
-      el.style.visibility = "hidden";
+      if (!el) return false;
+      el.style.display = "none";
 
-      // 2. Disable all mouse / touch interactions
+      // Defensive: even if display toggles later, kill interaction
       el.style.pointerEvents = "none";
-
-      // 3. Defensive: remove navigation behavior
-      el.removeAttribute("href");
-      el.removeAttribute("role");
-
-      // 4. Accessibility: hide from screen readers
       el.setAttribute("aria-hidden", "true");
       el.setAttribute("tabindex", "-1");
 
@@ -264,6 +263,7 @@ function ruleProfileHeaderHideDelphiLogo() {
     },
   };
 }
+
 
 /********************************************************************
  * Register all DOM enforcement rules
@@ -305,7 +305,10 @@ function registerDelphiDomRules(iframe) {
     })
   );
 
-  addDelphiDomRule(iframe, ruleCallHeaderBackToChatLink());
+  addDelphiDomRule(
+    iframe,
+    ruleCallHeaderBackToChatLink()
+  );
 
   /* OVERVIEW_mode view
   */
@@ -313,7 +316,6 @@ function registerDelphiDomRules(iframe) {
     iframe,
     ruleProfileHeaderHideDelphiLogo()
   );
-
   
 }
 
