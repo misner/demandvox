@@ -150,6 +150,13 @@ function addDelphiDomRule(iframe, rule) {
  * Add reusable rule builders (so adding more later is easy)
  *   Later, when you want more behaviors, you add more builders like: ruleSetAttribute,
  *   ruleMoveElement, ruleSwapImageSrc, ruleRemoveElement …without adding more observers.
+ * Note on when to use Rules and when to use CSS_INJECT futher below
+ *   Use Rules to change/remove an element; use CSS_INJECT to do a css injection noably 
+ *   when it's on a Tailwind utility class (ex: pt6) and we want an !important override 
+ *   that reliably beats class-based styling.
+ *   Why we don't need a separate DOM rule for padding, because: tailwind css is class-driven, so inline el.style.paddingTop 
+ *   can still lose if later renders re-apply classes/styles and CSS_INJECT use! important
+ *   making it stable across re-renders.
  ********************************************************************/
 function ruleForceText({ name, selector, getText }) {
   return {
@@ -287,6 +294,15 @@ function ruleProfileHeaderHideDelphiLogo() {
   };
 }
 
+function ruleCallRemoveNameH2() {
+  return ruleRemoveElement({
+    name: "call-clone-indicator-name-h2-removed",
+    selector:
+      "div.delphi-call-container h2.delphi-call-clone-indicator-title",
+  });
+}
+
+
 /********************************************************************
  * Register all DOM enforcement rules
  ********************************************************************/
@@ -295,6 +311,13 @@ function registerDelphiDomRules(iframe) {
   if (iframe.__dvDomRulesInstalled) return;
   iframe.__dvDomRulesInstalled = true;
 
+  /* OVERVIEW_mode view
+  */
+  addDelphiDomRule(
+    iframe,
+    ruleProfileHeaderHideDelphiLogo()
+  );
+  
   /* CHAT_mode view 
   */
   // Profile/Overview H1: "Hi, I'm Michael"
@@ -306,16 +329,7 @@ function registerDelphiDomRules(iframe) {
       getText: () => INTRO_TITLE,
     })
   );
-
-  // Chat header title: hide but keep layout (your existing requirement)
-  // addDelphiDomRule(
-  //   iframe,
-  //   ruleHideButKeepLayout({
-  //     name: "chat-header-title-hidden",
-  //     selector: "h1.delphi-talk-title-text",
-  //   })
-  // );
-
+  
   addDelphiDomRule(
     iframe,
     ruleRemoveElement({
@@ -340,11 +354,9 @@ function registerDelphiDomRules(iframe) {
     ruleCallHeaderBackToChatLink()
   );
 
-  /* OVERVIEW_mode view
-  */
   addDelphiDomRule(
     iframe,
-    ruleProfileHeaderHideDelphiLogo()
+    ruleCallCloneIndicatorRemoveNameH2()
   );
   
 }
@@ -750,6 +762,13 @@ function injectOverridesIntoIframe(iframe) {
       h1.delphi-call-header-title {
         visibility: hidden !important;
       }
+
+      /* Call_mode: remove extra top padding after we remove the H2 
+          to have the CTA button 'start' closer from large picture */
+      .delphi-call-container .delphi-call-idle-container {
+        padding-top: 0 !important;
+      }
+      
     `;
     
     dvLog("[delphi-styling] CSS injected into iframe"); 
