@@ -683,7 +683,7 @@ function enableIframeAutoResize(iframe) {
       const minHeightOnModeEntry = Math.floor(
         window.innerHeight * MIN_IFRAME_VIEWPORT_RATIO
       );      
-      if (mode === "call_mode") {
+      if (mode === "call_mode" || mode === "overview_mode") {
         // Hide during the dvh-breaking resize sequence (prevents visible jump)
         setIframeBusy(iframe, true);
       
@@ -697,11 +697,12 @@ function enableIframeAutoResize(iframe) {
           resizeIframe();
           setIframeBusy(iframe, false);
         }, 50);
-      } else if (mode === "overview_mode") {
-        // Overview may also benefit from a pre-reset, but it’s usually less visually jarring
-        iframe.style.height = minHeightOnModeEntry + "px";
-        setTimeout(() => resizeIframe(), 50);
-      }
+      } 
+      // else if (mode === "overview_mode") {
+      //   // Overview may also benefit from a pre-reset, but it’s usually less visually jarring
+      //   iframe.style.height = minHeightOnModeEntry + "px";
+      //   setTimeout(() => resizeIframe(), 50);
+      // }
       
       // Ensure call_mode height is recalculated fresh after layout settles,
       // regardless of previous mode (fixes “inherits overview height”).
