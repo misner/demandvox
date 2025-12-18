@@ -704,6 +704,22 @@ function enableIframeAutoResize(iframe) {
         }, 150);
       }
 
+      // Some Delphi views (notably call/overview) use viewport-tied heights (e.g., h-dvh).
+      // If we carry over the previous iframe height, the embedded "dvh" becomes that old height,
+      // and the view will never shrink. Pre-reset the iframe height on mode entry to break that loop.
+      const minHeightOnModeEntry = Math.floor(
+        window.innerHeight * MIN_IFRAME_VIEWPORT_RATIO
+      );      
+      if (mode === "call_mode" || mode === "overview_mode") {
+        iframe.style.height = minHeightOnModeEntry + "px";
+        dvLog(
+          "[delphi-resize] pre-reset iframe height:",
+          minHeightOnModeEntry,
+          "for",
+          mode
+        );
+      }      
+      
       // Ensure call_mode height is recalculated fresh after layout settles,
       // regardless of previous mode (fixes “inherits overview height”).
       if (mode === "call_mode") {
