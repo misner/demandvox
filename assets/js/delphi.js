@@ -245,19 +245,32 @@ function ruleCallHeaderBackToChatLink() {
  */
 function ruleProfileHeaderHideDelphiLogo() {
   return {
-    name: "profile-header-delphi-logo-hidden",
+    name: "profile-header-delphi-logo-hidden-and-disabled",
 
-    // Profile/overview-only anchor: the logo is inside the profile container header
-    selector: ".delphi-profile-container > header a[aria-label='Delphi']",
+    // Scope specifically to Overview/Profile mode header
+    apply(doc) {
+      const logoLink = doc.querySelector(
+        ".delphi-profile-container > header a[aria-label='Delphi']"
+      );
+      if (!logoLink) return false;
 
-    apply(el) {
-      if (!el) return false;
-      el.style.display = "none";
+      // Make it invisible AND non-interactive
+      // (Using display:none removes click area entirely)
+      if (logoLink.style.display !== "none") {
+        logoLink.style.display = "none";
+      }
 
-      // Defensive: even if display toggles later, kill interaction
-      el.style.pointerEvents = "none";
-      el.setAttribute("aria-hidden", "true");
-      el.setAttribute("tabindex", "-1");
+      // Defensive: even if display toggles later, ensure no interactions
+      if (logoLink.style.pointerEvents !== "none") {
+        logoLink.style.pointerEvents = "none";
+      }
+
+      // Defensive: remove navigation behavior if Delphi re-adds styling
+      if (logoLink.hasAttribute("href")) {
+        logoLink.removeAttribute("href");
+      }
+      logoLink.setAttribute("tabindex", "-1");
+      logoLink.setAttribute("aria-hidden", "true");
 
       return true;
     },
