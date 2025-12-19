@@ -692,6 +692,67 @@ function enableIframeAutoResize(iframe) {
     requestAnimationFrame(tick);
   }
 
+  /**
+   * Factorized mode-change handler so both:
+   * - MutationObserver (immediate)
+   * - setInterval (fallback)
+   * can share exactly the same logic.
+   */
+  function handleModeChange(nextMode, source) {
+    dvLog("[delphi-resize] mode change:", lastMode, "→", nextMode, `(source=${source})`);
+
+    if (nextMode === "chat_mode") {
+      userHasScrolled = false;
+      firstAutoScrollDone = false;
+
+      setTimeout(() => {
+        resizeIframe();
+        scrollOuterPageToIframeBottom();
+        firstAutoScrollDone = true;
+      }, 150);
+    }
+
+    if (nextMode === "call_mode" || nextMode === "overview_mode") {
+      stabilizeHeightOnModeEntry(nextMode);
+    }
+
+    lastMode = nextMode;
+  }
+
+  /**
+   * Immediate mode detection via MutationObserver:
+   * triggers stabilization as soon as Delphi swaps screens,
+   * instead of waiting for the 1.5s interval tick.
+   */
+  if (!doc.__dvModeObserverInstalled && doc.body) {
+    doc.__dvModeObserverInstalled = true;
+
+    let scheduled = false;
+
+    const scheduleCheck = () => {
+      if (scheduled) return;
+      scheduled = true;
+
+      requestAnimationFrame(() => {
+        scheduled = false;
+
+        const modeNow = getDelphiMode(doc);
+        if (modeNow !== lastMode) {
+          handleModeChange(modeNow, "mutation");
+        }
+      });
+    };
+
+    const modeObserver = new MutationObserver(scheduleCheck);
+    modeObserver.observe(doc.body, { childList: true, subtree: true, attributes: true });
+
+    // Optional: run once quickly after install (covers very fast transitions)
+    scheduleCheck();
+
+    doc.__dvModeObserver = modeObserver;
+    dvLog("[delphi-resize] Mode observer installed");
+  }
+
   /******************************************************************
    * Detect manual user scroll
    * ---------------------------------------------------------------
@@ -731,46 +792,15 @@ function enableIframeAutoResize(iframe) {
    * coupling to internal Delphi implementation details.
    **************************************************************/
   iframe.__dvResizeIntervalId = setInterval(() => {
+    // Always keep size fresh as a fallback
+    resizeIframe();
+    
     const mode = getDelphiMode(doc);
 
-    // Always keep size reasonably fresh
-    resizeIframe();
-
-    /**************************************************************
-     * Mode transition handling
-     **************************************************************/
+    // Fallback mode detection (in case mutations are missed)
     if (mode !== lastMode) {
-      dvLog("[delphi-resize] mode change:", lastMode, "→", mode);
-
-      /**********************************************************
-       * Entering chat mode
-       * -------------------------------------------------------
-       * We force a fresh scroll correction regardless of height
-       * to reach the input field.
-       * This fixes the case: start in overview, click Chat, and
-       * the composer is below the fold.
-       **********************************************************/
-      if (mode === "chat_mode") {
-        userHasScrolled = false;
-        firstAutoScrollDone = false;
-
-        // Let layout settle before correcting
-        setTimeout(() => {
-          resizeIframe();
-
-          // Always do the correction when entering chat
-          scrollOuterPageToIframeBottom();
-          firstAutoScrollDone = true;
-        }, 150);
-      }      
-
-      // Stabilized RAF loop
-      if (mode === "call_mode" || mode === "overview_mode") {
-        stabilizeHeightOnModeEntry(mode);
-      }
-            
-      lastMode = mode;
-    }
+      handleModeChange(mode, "interval");
+    }    
   }, RESIZE_INTERVAL_MS);
 }
 
