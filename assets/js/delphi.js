@@ -754,6 +754,11 @@ function enableIframeAutoResize(iframe) {
         // Hide during the dvh-breaking resize sequence (prevents visible jump)
         setIframeBusy(iframe, true);
 
+        // Always appear from the top of the iframe
+        try {
+          iframe.scrollIntoView({ block: "start", behavior: "auto" });
+        } catch (_) {}
+
         // Hard reset to break “previous view” inherited height
         iframe.style.height = minHeightOnModeEntry + "px";
         dvLog("[delphi-resize] pre-reset iframe height:", minHeightOnModeEntry, "for", mode);
