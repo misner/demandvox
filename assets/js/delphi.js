@@ -394,15 +394,79 @@ function registerDelphiDomRules(iframe) {
 /********************************************************************
  * Iframe Helpers
  ********************************************************************/
-// Hide the iframe only during the call-mode reflow, then show it
-// to prevent the flicker that comes with the fact that when delphi changes modes (call, overview...)
-// we temporarily set the iframe height to a smaller baseline, then Delphi reflows and we expand again
+// While iframe is busy loading, make the “busy” state fully hide (not just fade)
 function setIframeBusy(iframe, isBusy) {
   if (!iframe) return;
+
   iframe.style.transition = "opacity 120ms ease";
-  iframe.style.opacity = isBusy ? "0" : "1";
   iframe.style.pointerEvents = isBusy ? "none" : "auto";
+
+  if (isBusy) {
+    iframe.style.opacity = "0";
+    iframe.style.visibility = "hidden"; // prevents “seeing it move”
+  } else {
+    iframe.style.visibility = "visible";
+    // let visibility apply before fading in
+    requestAnimationFrame(() => {
+      iframe.style.opacity = "1";
+    });
+  }
 }
+
+//"wait until height is stable" helper
+function waitForStableIframeHeight({
+  iframe,
+  doc,
+  getMode,
+  maxMs = 2000,
+  sampleEveryMs = 60,
+  stableSamplesNeeded = 3,
+  pxTolerance = 2,
+  onTick,
+}) {
+  const start = performance.now();
+  let last = -1;
+  let stableCount = 0;
+
+  return new Promise((resolve) => {
+    const t = setInterval(() => {
+      const mode = getMode(doc);
+      if (mode !== "call_mode") {
+        clearInterval(t);
+        resolve("mode-changed");
+        return;
+      }
+
+      // Recompute each tick (Delphi can reflow)
+      const root = getActiveHeightRoot(mode);
+      const h = root ? root.scrollHeight : doc.documentElement.scrollHeight;
+
+      if (typeof onTick === "function") onTick(h);
+
+      if (last >= 0 && Math.abs(h - last) <= pxTolerance) {
+        stableCount += 1;
+      } else {
+        stableCount = 0;
+      }
+      last = h;
+
+      if (stableCount >= stableSamplesNeeded) {
+        clearInterval(t);
+        resolve("stable");
+        return;
+      }
+
+      if (performance.now() - start >= maxMs) {
+        clearInterval(t);
+        resolve("timeout");
+      }
+    }, sampleEveryMs);
+  });
+}
+
+
+
+
 
 /********************************************************************
  * Wait until iframe exists
@@ -687,15 +751,33 @@ function enableIframeAutoResize(iframe) {
       if (mode === "call_mode" || mode === "overview_mode") {
         // Hide during the dvh-breaking resize sequence (prevents visible jump)
         setIframeBusy(iframe, true);
-      
+
+        // Hard reset to break “previous view” inherited height
         iframe.style.height = minHeightOnModeEntry + "px";
         dvLog("[delphi-resize] pre-reset iframe height:", minHeightOnModeEntry, "for", mode);
       
-        // Run a resize, then reveal
-        setTimeout(() => {
+        // Kick a couple of immediate recalcs (no reveal yet)
+        requestAnimationFrame(() => resizeIframe());
+        setTimeout(() => resizeIframe(), 80);
+      
+        // Keep resizing while Delphi is settling, then reveal only when stable
+        waitForStableIframeHeight({
+          iframe,
+          doc,
+          getMode: getDelphiMode,
+          maxMs: 2000,
+          sampleEveryMs: 60,
+          stableSamplesNeeded: 3,
+          pxTolerance: 2,
+          onTick: () => {
+            // Ensure we always follow the latest layout during the wait
+            resizeIframe();
+          },
+        }).then(() => {
+          // Final resize, then reveal
           resizeIframe();
           setIframeBusy(iframe, false);
-        }, 50);
+        });
       }       
       
       lastMode = mode;
