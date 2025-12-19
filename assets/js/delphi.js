@@ -247,7 +247,6 @@ function ruleRemoveElement({ name, selector }) {
   };
 }
 
-
 /**
  * ---------------------------------------------------------------
  * Call header (DESKTOP ONLY):
@@ -266,7 +265,6 @@ function ruleCallHeaderBackToChatLink() {
 
   return {
     name: "call-header-back-to-chat-link",
-    selector,
 
     apply(doc) {
       const link = doc.querySelector(selector);
@@ -353,14 +351,7 @@ function registerDelphiDomRules(iframe) {
   iframe.__dvDomRulesInstalled = true;
 
   /* OVERVIEW_mode view
-  */
-  addDelphiDomRule(
-    iframe,
-    ruleProfileHeaderHideDelphiLogo()
-  );
-  
-  /* CHAT_mode view 
-  */
+  */  
   // Profile/Overview H1: "Hi, I'm Michael"
   addDelphiDomRule(
     iframe,
@@ -371,6 +362,13 @@ function registerDelphiDomRules(iframe) {
     })
   );
   
+  addDelphiDomRule(
+    iframe,
+    ruleProfileHeaderHideDelphiLogo()
+  );
+  
+  /* CHAT_mode view 
+  */  
   addDelphiDomRule(
     iframe,
     ruleRemoveElement({
@@ -798,6 +796,9 @@ function enableIframeAutoResize(iframe) {
    * A lightweight polling loop ensures resilience without
    * coupling to internal Delphi implementation details.
    **************************************************************/
+  // Periodic safety net:
+  // - Catches missed SPA transitions
+  // - Reconciles height if DOM mutates outside observers
   iframe.__dvResizeIntervalId = setInterval(() => {
     // Always keep size fresh as a fallback
     resizeIframe();
@@ -808,7 +809,7 @@ function enableIframeAutoResize(iframe) {
     if (mode !== lastMode) {
       handleModeChange(mode, "interval");
     }    
-  }, RESIZE_INTERVAL_MS);
+  }, RESIZE_INTERVAL_MS);//note
 }
 
 /********************************************************************
