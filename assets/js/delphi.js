@@ -394,6 +394,39 @@ function registerDelphiDomRules(iframe) {
 /********************************************************************
  * Iframe Helpers
  ********************************************************************/
+/******************************************************************
+* Choose a better "height root" per mode
+* ---------------------------------------------------------------
+* In SPA UIs, documentElement.scrollHeight can stay stable even
+* when the visible view changes, because hidden views may remain
+* mounted in the DOM.
+*
+* So we try to measure the active view container first.
+******************************************************************/  
+function getActiveHeightRoot(doc, mode) {
+  if (!doc) return null;
+  
+  // Match the (now visibility-based) mode detection.
+  // This prevents “mounted but hidden” screens from polluting height.
+  if (mode === "call_mode") {
+    return queryVisible(doc, ".delphi-call-container") || doc.body;
+  }
+
+  if (mode === "chat_mode") {
+    return (
+      queryVisible(doc, ".delphi-chat-conversation") ||
+      queryVisible(doc, "[data-sentry-component='Talk']") ||
+      doc.body
+    );
+  }
+
+  if (mode === "overview_mode") {
+    return queryVisible(doc, ".delphi-profile-container") || doc.body;
+  }
+
+  return doc.body || doc.documentElement;
+}
+
 // While iframe is busy loading, make the “busy” state fully hide (not just fade)
 function setIframeBusy(iframe, isBusy) {
   if (!iframe) return;
@@ -438,7 +471,7 @@ function waitForStableIframeHeight({
       }
 
       // Recompute each tick (Delphi can reflow)
-      const root = getActiveHeightRoot(mode);
+      const root = getActiveHeightRoot(doc, mode);
       const h = root ? root.scrollHeight : doc.documentElement.scrollHeight;
 
       if (typeof onTick === "function") onTick(h);
@@ -591,38 +624,7 @@ function enableIframeAutoResize(iframe) {
       window.scrollTo({ top: targetScrollTop, behavior: "auto" });
     }
   }
-
-  /******************************************************************
-   * Choose a better "height root" per mode
-   * ---------------------------------------------------------------
-   * In SPA UIs, documentElement.scrollHeight can stay stable even
-   * when the visible view changes, because hidden views may remain
-   * mounted in the DOM.
-   *
-   * So we try to measure the active view container first.
-   ******************************************************************/  
-  function getActiveHeightRoot(mode) {
-    // Match the (now visibility-based) mode detection.
-    // This prevents “mounted but hidden” screens from polluting height.
-    if (mode === "call_mode") {
-      return queryVisible(doc, ".delphi-call-container") || doc.body;
-    }
-
-    if (mode === "chat_mode") {
-      return (
-        queryVisible(doc, ".delphi-chat-conversation") ||
-        queryVisible(doc, "[data-sentry-component='Talk']") ||
-        doc.body
-      );
-    }
-
-    if (mode === "overview_mode") {
-      return queryVisible(doc, ".delphi-profile-container") || doc.body;
-    }
-
-    return doc.body || doc.documentElement;
-  }
-
+  
   /******************************************************************
    * resizeIframe()
    * ---------------------------------------------------------------
@@ -637,7 +639,7 @@ function enableIframeAutoResize(iframe) {
     const minHeight = Math.floor(window.innerHeight * MIN_IFRAME_VIEWPORT_RATIO);
 
     // Measure from the active view container when possible
-    const root = getActiveHeightRoot(mode);
+    const root = getActiveHeightRoot(doc, mode);
 
     // scrollHeight is still the most practical metric, but on a smaller subtree
     const contentHeight = root ? root.scrollHeight : doc.documentElement.scrollHeight;
