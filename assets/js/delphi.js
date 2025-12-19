@@ -603,18 +603,7 @@ function enableIframeAutoResize(iframe) {
     // We therefore take the max across multiple roots (document + likely containers).
     let contentHeight;
     if (mode === "chat_mode") {
-      // const candidates = [
-      //   root,
-      //   doc.querySelector("[data-sentry-component='Talk']"),
-      //   doc.body,
-      //   doc.documentElement,
-      // ].filter(Boolean);
-  
-      // contentHeight = Math.max(
-      //   ...candidates.map((n) => n.scrollHeight || 0),
-      //   doc.documentElement?.scrollHeight || 0,
-      // );
-
+      
       /*****************************************************************       
        * Chat height should be driven by the conversation content,
        * not by document/body scrollHeight (those can include other
@@ -929,6 +918,9 @@ function injectOverridesIntoIframe(iframe) {
       /* Example: styling access confirmed */
       /* .delphi-talk-container { background: red !important; } */
 
+      /* GENERAL e.g. across different Modes
+      */ 
+      
       /* IMPORTANT: do NOT hide overflow here anymore or scrolling breaks */
       html, body {
         overflow: visible !important;
@@ -953,8 +945,24 @@ function injectOverridesIntoIframe(iframe) {
         display: flex !important;
         align-items: center !important;
         justify-content: space-between !important;
-      }
+      }   
       
+      /* OVERVIEW_MODE
+      */ 
+
+      /* CHAT_MODE
+      */
+      
+      /*Set as invisible to make sure ven if we remove
+      that it does not appear for a quick second before removal
+      (optional but harmless - alrady done inline) */
+      h1.delphi-talk-title-text {
+        visibility: hidden !important;
+      }
+
+      /* CALL_MODE
+      */ 
+
       /* Ensure the title block (avatar + hidden h1) sits on the left */
       nav.from-sand-1.bg-sand-1 .delphi-talk-title-link {
         justify-content: flex-start !important;
@@ -965,13 +973,6 @@ function injectOverridesIntoIframe(iframe) {
       nav.from-sand-1.bg-sand-1 [data-sentry-component="TalkTitle"] {
         margin: 0 !important;
       }
-      
-      /* Set as invisible to make sure ven if we remove
-      that it does not appear for a quick second before removal
-      (optional but harmless - alreayd done inline) */
-      h1.delphi-talk-title-text {
-        visibility: hidden !important;
-      }
 
       /* Keep existing title invisibility
       (optional but harmless - alreayd done inline) */
@@ -979,7 +980,7 @@ function injectOverridesIntoIframe(iframe) {
         visibility: hidden !important;
       }
 
-      /* Call_mode: remove extra top padding after we remove the H2 
+      /* Remove extra top padding after we remove the H2 
           to have the CTA button 'start' closer from large picture */
       .delphi-call-container .delphi-call-idle-container {
         padding-top: 0 !important;
