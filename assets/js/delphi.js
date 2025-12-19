@@ -597,23 +597,47 @@ function enableIframeAutoResize(iframe) {
     // Measure from the active view container when possible
     const root = getActiveHeightRoot(mode);
 
-     // In chat_mode, the main content can live inside an internal scroll container.
+    // In chat_mode, the main content can live inside an internal scroll container.
     // If we measure only that subtree, we may under-measure and lose access to the true top
     // of the conversation on long threads (outer page can't scroll far enough).
     // We therefore take the max across multiple roots (document + likely containers).
     let contentHeight;
     if (mode === "chat_mode") {
-      const candidates = [
-        root,
-        doc.querySelector("[data-sentry-component='Talk']"),
-        doc.body,
-        doc.documentElement,
-      ].filter(Boolean);
+      // const candidates = [
+      //   root,
+      //   doc.querySelector("[data-sentry-component='Talk']"),
+      //   doc.body,
+      //   doc.documentElement,
+      // ].filter(Boolean);
   
-      contentHeight = Math.max(
-        ...candidates.map((n) => n.scrollHeight || 0),
-        doc.documentElement?.scrollHeight || 0,
-      );
+      // contentHeight = Math.max(
+      //   ...candidates.map((n) => n.scrollHeight || 0),
+      //   doc.documentElement?.scrollHeight || 0,
+      // );
+
+      /*****************************************************************       
+       * Chat height should be driven by the conversation content,
+       * not by document/body scrollHeight (those can include other
+       * hidden views and inflate the iframe height).
+       *****************************************************************/
+      const convo = doc.querySelector(".delphi-chat-conversation");
+      const talk = doc.querySelector("[data-sentry-component='Talk']");
+      const convoH = convo?.scrollHeight || 0;
+      const talkH = talk?.scrollHeight || 0;
+      const rootH = root?.scrollHeight || 0;
+      const docH = doc.documentElement?.scrollHeight || 0;
+
+      // Primary measurement: visible chat content
+      let best = Math.max(convoH, talkH, rootH);
+
+      // Defensive fallback: only trust docH if it's close to the best value,
+      // or if we couldn't find any meaningful chat root at all.
+      if (best === 0 || docH <= best * 1.2) {
+        best = Math.max(best, docH);
+      }
+
+      contentHeight = best;
+      
     } else {
       // scrollHeight is still the most practical metric, but on a smaller subtree
       contentHeight = root ? root.scrollHeight : doc.documentElement.scrollHeight;
