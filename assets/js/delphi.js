@@ -597,11 +597,29 @@ function enableIframeAutoResize(iframe) {
     // Measure from the active view container when possible
     const root = getActiveHeightRoot(mode);
 
-    // scrollHeight is still the most practical metric, but on a smaller subtree
-    const contentHeight = root ? root.scrollHeight : doc.documentElement.scrollHeight;
+     // In chat_mode, the main content can live inside an internal scroll container.
+    // If we measure only that subtree, we may under-measure and lose access to the true top
+    // of the conversation on long threads (outer page can't scroll far enough).
+    // We therefore take the max across multiple roots (document + likely containers).
+    let contentHeight;
+    if (mode === "chat_mode") {
+      const candidates = [
+        root,
+        doc.querySelector("[data-sentry-component='Talk']"),
+        doc.body,
+        doc.documentElement,
+      ].filter(Boolean);
+  
+      contentHeight = Math.max(
+        ...candidates.map((n) => n.scrollHeight || 0),
+        doc.documentElement?.scrollHeight || 0,
+      );
+    } else {
+      // scrollHeight is still the most practical metric, but on a smaller subtree
+      contentHeight = root ? root.scrollHeight : doc.documentElement.scrollHeight;
+    }
 
     const finalHeight = Math.max(contentHeight, minHeight);
-
     iframe.style.height = finalHeight + "px";
 
     /**************************************************************
