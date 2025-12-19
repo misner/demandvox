@@ -6,6 +6,17 @@ const INTRO_TITLE = "Hi, I'm Michael";
 const RESIZE_INTERVAL_MS = 1500;
 const IFRAME_GO_TO_PROFILE = "Back to chat center";
 
+/**
+ * Flicker/jump reduction on SPA mode transitions:
+ * - We hide the iframe briefly while we:
+ *   1) pre-reset height (break dvh feedback loops)
+ *   2) measure until stable (a few RAF ticks)
+ * - Then we reveal once the height is stable.
+ */
+const MODE_ENTRY_STABILIZE_MAX_MS = 450; // cap total stabilization time
+const MODE_ENTRY_STABLE_FRAMES = 2;      // how many consecutive stable frames required
+const MODE_ENTRY_STABLE_EPS_PX = 2;      // "stable" tolerance in px
+
 /********************************************************************
  * Environment + logging
  * ------------------------------------------------------------------
@@ -394,14 +405,20 @@ function registerDelphiDomRules(iframe) {
 /********************************************************************
  * Iframe Helpers
  ********************************************************************/
-// Hide the iframe only during the call-mode reflow, then show it
-// to prevent the flicker that comes with the fact that when delphi changes modes (call, overview...)
-// we temporarily set the iframe height to a smaller baseline, then Delphi reflows and we expand again
 function setIframeBusy(iframe, isBusy) {
   if (!iframe) return;
-  iframe.style.transition = "opacity 120ms ease";
-  iframe.style.opacity = isBusy ? "0" : "1";
-  iframe.style.pointerEvents = isBusy ? "none" : "auto";
+
+  // Make hide immediate (avoid "fade then jump still visible")
+  if (isBusy) {
+    iframe.style.transition = "none";
+    iframe.style.opacity = "0";
+    iframe.style.pointerEvents = "none";
+  } else {
+    // Restore a subtle fade-in only when revealing
+    iframe.style.transition = "opacity 120ms ease";
+    iframe.style.opacity = "1";
+    iframe.style.pointerEvents = "auto";
+  }
 }
 
 /********************************************************************
@@ -606,6 +623,75 @@ function enableIframeAutoResize(iframe) {
     }
   }
 
+  /**
+   * Stabilize height on mode entry (call/overview):
+   * - hide iframe immediately
+   * - pre-reset to baseline height
+   * - measure across RAF until height stops changing
+   * - set final height once stable, then reveal
+   */
+  function stabilizeHeightOnModeEntry(targetMode) {
+    const startedAt = performance.now();
+    const minHeight = Math.floor(window.innerHeight * MIN_IFRAME_VIEWPORT_RATIO);
+
+    setIframeBusy(iframe, true);
+
+    // Break dvh feedback loop right away
+    iframe.style.height = minHeight + "px";
+    dvLog("[delphi-resize] stabilize: pre-reset height", minHeight, "for", targetMode);
+
+    let lastMeasured = -1;
+    let stableFrames = 0;
+
+    const tick = () => {
+      const now = performance.now();
+      const modeNow = getDelphiMode(doc);
+
+      // If the mode changed again while stabilizing, abort safely
+      if (modeNow !== targetMode) {
+        dvLog("[delphi-resize] stabilize: aborted (mode changed)", targetMode, "→", modeNow);
+        setIframeBusy(iframe, false);
+        return;
+      }
+
+      // Measure using the active root for this mode
+      const root = getActiveHeightRoot(modeNow);
+      const contentHeight = root ? root.scrollHeight : doc.documentElement.scrollHeight;
+      const nextHeight = Math.max(contentHeight, minHeight);
+
+      // Apply during stabilization, but keep hidden
+      iframe.style.height = nextHeight + "px";
+
+      if (lastMeasured >= 0 && Math.abs(nextHeight - lastMeasured) <= MODE_ENTRY_STABLE_EPS_PX) {
+        stableFrames += 1;
+      } else {
+        stableFrames = 0;
+      }
+
+      lastMeasured = nextHeight;
+
+      const elapsed = now - startedAt;
+      const done = stableFrames >= MODE_ENTRY_STABLE_FRAMES || elapsed >= MODE_ENTRY_STABILIZE_MAX_MS;
+
+      if (done) {
+        dvLog("[delphi-resize] stabilize: done", {
+          mode: modeNow,
+          finalHeight: nextHeight,
+          stableFrames,
+          elapsed: Math.round(elapsed),
+        });
+
+        // Reveal after final height is already applied
+        requestAnimationFrame(() => setIframeBusy(iframe, false));
+        return;
+      }
+
+      requestAnimationFrame(tick);
+    };
+
+    requestAnimationFrame(tick);
+  }
+
   /******************************************************************
    * Detect manual user scroll
    * ---------------------------------------------------------------
@@ -678,26 +764,11 @@ function enableIframeAutoResize(iframe) {
         }, 150);
       }      
 
-      // Some Delphi views (notably call/overview) use viewport-tied heights (e.g., h-dvh).
-      // If we carry over the previous iframe height, the embedded "dvh" becomes that old height,
-      // and the view will never shrink. Pre-reset the iframe height on mode entry to break that loop.
-      const minHeightOnModeEntry = Math.floor(
-        window.innerHeight * MIN_IFRAME_VIEWPORT_RATIO
-      );      
+      // Stabilized RAF loop
       if (mode === "call_mode" || mode === "overview_mode") {
-        // Hide during the dvh-breaking resize sequence (prevents visible jump)
-        setIframeBusy(iframe, true);
-      
-        iframe.style.height = minHeightOnModeEntry + "px";
-        dvLog("[delphi-resize] pre-reset iframe height:", minHeightOnModeEntry, "for", mode);
-      
-        // Run a resize, then reveal
-        setTimeout(() => {
-          resizeIframe();
-          setIframeBusy(iframe, false);
-        }, 50);
-      }       
-      
+        stabilizeHeightOnModeEntry(mode);
+      }
+            
       lastMode = mode;
     }
   }, RESIZE_INTERVAL_MS);
