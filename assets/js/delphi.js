@@ -421,6 +421,13 @@ function setIframeBusy(iframe, isBusy) {
   }
 }
 
+//used to wait SP mounts iframe
+//wait for next paint (or two)” instead of “wait N ms” with a simple interval
+//It typically reduces variability and avoids feeling sluggish.
+function afterNextPaint(fn) {
+  requestAnimationFrame(() => requestAnimationFrame(fn));
+}
+
 /********************************************************************
  * Wait until iframe exists
  ********************************************************************/
@@ -705,11 +712,11 @@ function enableIframeAutoResize(iframe) {
       userHasScrolled = false;
       firstAutoScrollDone = false;
 
-      setTimeout(() => {
+      afterNextPaint(() => {
         resizeIframe();
         scrollOuterPageToIframeBottom();
         firstAutoScrollDone = true;
-      }, 150);
+      });      
     }
 
     if (nextMode === "call_mode" || nextMode === "overview_mode") {
