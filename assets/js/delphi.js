@@ -915,23 +915,19 @@ function injectOverridesIntoIframe(iframe) {
     }
     
     style.textContent = `
-      /* Example: styling access confirmed */
-      /* .delphi-talk-container { background: red !important; } */
-
       /* GENERAL e.g. across different Modes
       */ 
       
-      /* IMPORTANT: do NOT hide overflow here anymore or scrolling breaks */
-      html, body {
-        overflow: visible !important;
-        height: auto !important;
-
-        /* Keep scrollbars visually hidden but content still allowed to overflow */
+      /* Allow Delphi to keep its internal scroll logic,
+       but visually hide scrollbars only on the chat container */
+      .delphi-chat-conversation,
+      [data-sentry-component="Talk"] {
+        overflow-y: auto !important;
         scrollbar-width: none !important;      /* Firefox */
         -ms-overflow-style: none !important;   /* IE */
-      }
-      html::-webkit-scrollbar,
-      body::-webkit-scrollbar {
+      }      
+      .delphi-chat-conversation::-webkit-scrollbar,
+      [data-sentry-component="Talk"]::-webkit-scrollbar {
         display: none !important;              /* Chrome / Safari */
       }
 
