@@ -448,8 +448,8 @@ function ensureAlertWhenOuterNotAtBottom({
   }
 
   function checkAndAlert() {
-    if (typeof lastMode !== "undefined" && lastMode !== "chat_mode") {
-      return; // Only alert in chat_mode
+    if (typeof lastMode === "undefined" || lastMode !== "chat_mode") {
+      return; // Only alert when mode is explicitly known and equal to chat_mode 
     }
     const atBottom = isAtBottomNow();
 
