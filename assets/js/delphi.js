@@ -426,6 +426,80 @@ function afterNextPaint(fn) {
   requestAnimationFrame(() => requestAnimationFrame(fn));
 }
 
+// Helper to add my own 'scroll to bottom' button
+function ensureOuterScrollToBottomButton(iframe) {
+  const BTN_ID = "dv-outer-scroll-to-bottom";
+
+  let btn = document.getElementById(BTN_ID);
+  if (!btn) {
+    btn = document.createElement("button");
+    btn.id = BTN_ID;
+    btn.type = "button";
+    btn.textContent = "↓";
+    btn.setAttribute("aria-label", "Scroll to bottom");
+
+    // Minimal styling. Adjust as you like.
+    Object.assign(btn.style, {
+      position: "fixed",
+      right: "16px",
+      bottom: "16px",
+      width: "40px",
+      height: "40px",
+      borderRadius: "999px",
+      border: "1px solid rgba(0,0,0,0.15)",
+      background: "rgba(255,255,255,0.85)",
+      backdropFilter: "blur(8px)",
+      boxShadow: "0 6px 18px rgba(0,0,0,0.12)",
+      cursor: "pointer",
+      display: "none",
+      zIndex: "2147483647",
+      fontSize: "18px",
+      lineHeight: "40px",
+      textAlign: "center",
+    });
+
+    btn.addEventListener("click", () => {
+      const rect = iframe.getBoundingClientRect();
+      const iframeTop = rect.top + window.pageYOffset;
+      const iframeBottom = iframeTop + iframe.offsetHeight;
+
+      window.scrollTo({
+        top: Math.max(0, iframeBottom - window.innerHeight + 12),
+        behavior: "smooth",
+      });
+    });
+
+    document.body.appendChild(btn);
+  }
+
+  const updateVisibility = () => {
+    const rect = iframe.getBoundingClientRect();
+
+    // If iframe is not on screen, hide the button.
+    if (rect.bottom <= 0 || rect.top >= window.innerHeight) {
+      btn.style.display = "none";
+      return;
+    }
+
+    // Show button if we're not near the bottom of the iframe content on the page.
+    const iframeBottomInPage = rect.bottom + window.pageYOffset;
+    const viewportBottomInPage = window.pageYOffset + window.innerHeight;
+
+    const nearBottom = viewportBottomInPage >= (iframeBottomInPage - 80);
+    btn.style.display = nearBottom ? "none" : "block";
+  };
+
+  // Keep it responsive
+  window.addEventListener("scroll", updateVisibility, { passive: true });
+  window.addEventListener("resize", updateVisibility);
+
+  // Also update after iframe resizes
+  const ro = new ResizeObserver(updateVisibility);
+  ro.observe(iframe);
+
+  updateVisibility();
+}
+
 /********************************************************************
  * Wait until iframe exists
  ********************************************************************/
@@ -453,6 +527,9 @@ function waitForIframe(selector, onFound) {
       iframe.style.minHeight = initialMinHeight + "px";
       iframe.style.height = initialMinHeight + "px";
       iframe.style.width = "100%";
+
+      // Outer “scroll to bottom” button (because you do NOT rely on iframe internal scroll)
+      ensureOuterScrollToBottomButton(iframe);
       
       clearInterval(timer);
       onFound(iframe);
