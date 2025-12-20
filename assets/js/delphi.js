@@ -904,36 +904,33 @@ function injectOverridesIntoIframe(iframe) {
     style.textContent = `
       /* GENERAL e.g. across different Modes
       */ 
-      
-      /* 1) Ensure Delphi scrolls the document (html/body), not an inner container */
-      html, body {
-        height: auto !important;
-        min-height: 100% !important;
-        overflow-y: auto !important;
-        overflow-x: hidden !important;
-      }      
-      /* 2) Prevent the conversation list from becoming a scroll container */
-      ul.delphi-chat-conversation {
-        overflow: visible !important;
-      }      
-      /* 3) Guard against any wrapper accidentally becoming the scroll container */
-      .delphi-talk-container,
+
+
+
+      /* Keep Delphi’s intended scrolling, just hide scrollbars visually.
+         Do NOT force overflow/scroll ownership.
+      */
+    
+      /* Hide scrollbars on likely scroll containers (Delphi chat + fallback to body). */
+      .delphi-talk-main-content,
       .delphi-talk-main,
-      .delphi-talk-main-content {
-        overflow: visible !important;
-      }      
-      /* 4) Hide scrollbars visually on the real scroll container (document) */
-      html {
+      .delphi-talk-container,
+      ul.delphi-chat-conversation,
+      html,
+      body {
         scrollbar-width: none !important;      /* Firefox */
-        -ms-overflow-style: none !important;   /* Legacy */
+        -ms-overflow-style: none !important;   /* IE/Edge legacy */
       }
-      html::-webkit-scrollbar {
-        display: none !important;              /* Chrome / Safari */
-      }      
-      /* Optional: if you still see a bar on body in some browsers */
+    
+      .delphi-talk-main-content::-webkit-scrollbar,
+      .delphi-talk-main::-webkit-scrollbar,
+      .delphi-talk-container::-webkit-scrollbar,
+      ul.delphi-chat-conversation::-webkit-scrollbar,
+      html::-webkit-scrollbar,
       body::-webkit-scrollbar {
-        display: none !important;
+        display: none !important;              /* Chrome/Safari */
       }
+      
 
       
 
