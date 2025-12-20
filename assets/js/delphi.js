@@ -17,6 +17,9 @@ const MODE_ENTRY_STABILIZE_MAX_MS = 450; // cap total stabilization time
 const MODE_ENTRY_STABLE_FRAMES = 2;      // how many consecutive stable frames required
 const MODE_ENTRY_STABLE_EPS_PX = 2;      // "stable" tolerance in px
 
+// Debug-only: controller for the "outer not at bottom" alert
+let stopOuterBottomAlert = null;
+
 /********************************************************************
  * Environment + logging
  * ------------------------------------------------------------------
@@ -425,6 +428,60 @@ function setIframeBusy(iframe, isBusy) {
 function afterNextPaint(fn) {
   requestAnimationFrame(() => requestAnimationFrame(fn));
 }
+
+//identify when user is NOT at the extreeme bottom of the viewport (only on Chat_mode)
+function ensureAlertWhenOuterNotAtBottom({
+  tolerancePx = 2,          // how close counts as "bottom"
+  alertOncePerExit = true,  // avoid repeated alerts while scrolling
+} = {}) {
+  let wasAtBottom = true;   // assume initial state bottom-ish; will be computed
+  let alertedForThisExit = false;
+
+  function isAtBottomNow() {
+    const docEl = document.documentElement;
+    const scrollTop = window.scrollY || docEl.scrollTop || 0;
+    const viewportH = window.innerHeight || docEl.clientHeight || 0;
+    const scrollH = docEl.scrollHeight || 0;
+
+    // At bottom if scrollTop + viewport >= scrollHeight (within tolerance)
+    return scrollTop + viewportH >= scrollH - tolerancePx;
+  }
+
+  function checkAndAlert() {
+    if (typeof lastMode !== "undefined" && lastMode !== "chat_mode") {
+      return; // Only alert in chat_mode
+    }
+    const atBottom = isAtBottomNow();
+
+    // Transition: bottom -> not bottom
+    if (wasAtBottom && !atBottom) {
+      if (!alertOncePerExit || !alertedForThisExit) {
+        alertedForThisExit = true;
+        alert("[debug] Outer page is NOT at bottom anymore.");
+      }
+    }
+
+    // Transition: not bottom -> bottom (reset)
+    if (!wasAtBottom && atBottom) {
+      alertedForThisExit = false;
+    }
+
+    wasAtBottom = atBottom;
+  }
+
+  // Run once immediately (so you know the starting state)
+  checkAndAlert();
+
+  // Scroll + resize can both change bottom-ness
+  window.addEventListener("scroll", checkAndAlert, { passive: true });
+  window.addEventListener("resize", checkAndAlert, { passive: true });
+
+  return () => {
+    window.removeEventListener("scroll", checkAndAlert);
+    window.removeEventListener("resize", checkAndAlert);
+  };
+}
+
 
 /********************************************************************
  * Wait until iframe exists
@@ -993,6 +1050,12 @@ document.addEventListener("DOMContentLoaded", () => {
   waitForIframe("#delphi-frame", (iframe) => {
     // CSS + layout overrides (safe to re-run)
     injectOverridesIntoIframe(iframe);  
+
+    // Debug: alert as soon as the OUTER page is not at bottom
+    ensureAlertWhenOuterNotAtBottom({
+      tolerancePx: 2,
+      alertOncePerExit: true,
+    });
  
     // Re-run only CSS overrides on iframe reload
     iframe.addEventListener("load", () => {
