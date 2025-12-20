@@ -905,34 +905,19 @@ function injectOverridesIntoIframe(iframe) {
       /* GENERAL e.g. across different Modes
       */ 
 
+      /* IMPORTANT: do NOT hide overflow here anymore or scrolling breaks */
+      html, body {
+        overflow: visible !important;
+        height: auto !important;
 
-
-      /* Keep Delphi’s intended scrolling, just hide scrollbars visually.
-         Do NOT force overflow/scroll ownership.
-      */
-    
-      /* Hide scrollbars on likely scroll containers (Delphi chat + fallback to body). */
-      .delphi-talk-main-content,
-      .delphi-talk-main,
-      .delphi-talk-container,
-      ul.delphi-chat-conversation,
-      html,
-      body {
+        /* Keep scrollbars visually hidden but content still allowed to overflow */
         scrollbar-width: none !important;      /* Firefox */
-        -ms-overflow-style: none !important;   /* IE/Edge legacy */
+        -ms-overflow-style: none !important;   /* IE */
       }
-    
-      .delphi-talk-main-content::-webkit-scrollbar,
-      .delphi-talk-main::-webkit-scrollbar,
-      .delphi-talk-container::-webkit-scrollbar,
-      ul.delphi-chat-conversation::-webkit-scrollbar,
       html::-webkit-scrollbar,
       body::-webkit-scrollbar {
-        display: none !important;              /* Chrome/Safari */
+        display: none !important;              /* Chrome / Safari */
       }
-      
-
-      
 
       /* Remove the left Delphi logo button (desktop) AND the mobile one */
       button.delphi-header-logo {
