@@ -855,20 +855,7 @@ function preKillIframeScrollbar(iframe) {
 
     const doc = iframe.contentDocument || iframe.contentWindow.document;
     if (!doc) return;
-
-    const style = doc.createElement("style");
-    style.textContent = `
-      /* HARD override to remove scrollbars inside the iframe instantly */
-      html, body {
-        scrollbar-width: none !important;      /* Firefox */
-        -ms-overflow-style: none !important;   /* IE */
-      }
-      html::-webkit-scrollbar,
-      body::-webkit-scrollbar {
-        display: none !important;              /* Chrome / Safari */
-      }
-    `;
-    doc.head.appendChild(style);
+    
   } catch (e) {
     dvWarn("[delphi-styling] Cannot pre-inject scrollbar-kill CSS", e);
   }
@@ -918,18 +905,37 @@ function injectOverridesIntoIframe(iframe) {
       /* GENERAL e.g. across different Modes
       */ 
       
-      /* Allow Delphi to keep its internal scroll logic,
-       but visually hide scrollbars only on the chat container */
-      .delphi-chat-conversation,
-      [data-sentry-component="Talk"] {
+      /* 1) Ensure Delphi scrolls the document (html/body), not an inner container */
+      html, body {
+        height: auto !important;
+        min-height: 100% !important;
         overflow-y: auto !important;
-        scrollbar-width: none !important;      /* Firefox */
-        -ms-overflow-style: none !important;   /* IE */
+        overflow-x: hidden !important;
       }      
-      .delphi-chat-conversation::-webkit-scrollbar,
-      [data-sentry-component="Talk"]::-webkit-scrollbar {
-        display: none !important;              /* Chrome / Safari */
+      /* 2) Prevent the conversation list from becoming a scroll container */
+      ul.delphi-chat-conversation {
+        overflow: visible !important;
+      }      
+      /* 3) Guard against any wrapper accidentally becoming the scroll container */
+      .delphi-talk-container,
+      .delphi-talk-main,
+      .delphi-talk-main-content {
+        overflow: visible !important;
+      }      
+      /* 4) Hide scrollbars visually on the real scroll container (document) */
+      html {
+        scrollbar-width: none !important;      /* Firefox */
+        -ms-overflow-style: none !important;   /* Legacy */
       }
+      html::-webkit-scrollbar {
+        display: none !important;              /* Chrome / Safari */
+      }      
+      /* Optional: if you still see a bar on body in some browsers */
+      body::-webkit-scrollbar {
+        display: none !important;
+      }
+
+      
 
       /* Remove the left Delphi logo button (desktop) AND the mobile one */
       button.delphi-header-logo {
