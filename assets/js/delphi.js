@@ -551,7 +551,10 @@ function ensureOuterScrollToBottomButton(iframe, opts = {}) {
 
   // ---- Primary: IntersectionObserver sentinel visibility ----
   let io = null;
-  let sentinelIsVisible = true;
+  // IMPORTANT:
+  // Start as "not visible" so the button can show immediately at page load
+  // (before IntersectionObserver delivers its first callback).
+  let sentinelIsVisible = false;
 
   function updateButtonVisibility(reason) {
     // Only in chat_mode
