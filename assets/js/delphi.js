@@ -17,8 +17,27 @@ const MODE_ENTRY_STABILIZE_MAX_MS = 450; // cap total stabilization time
 const MODE_ENTRY_STABLE_FRAMES = 2;      // how many consecutive stable frames required
 const MODE_ENTRY_STABLE_EPS_PX = 2;      // "stable" tolerance in px
 
-// Debug-only: controller for the "outer not at bottom" alert
+// Single installer to avoid duplicating the "stop + re-install" logic
 let stopOuterBottomAlert = null;
+function installOuterBottomAlert(iframe) {
+  // If already installed, remove previous listeners/timers first
+  if (typeof stopOuterBottomAlert === "function") {
+    stopOuterBottomAlert();
+    stopOuterBottomAlert = null;
+  }
+  stopOuterBottomAlert = ensureAlertWhenOuterNotAtBottom(iframe, {
+    tolerancePx: 2,
+    alertOncePerExit: true,
+    pollMs: 250,
+  });
+}
+// Cleanup on full page unload (navigation / refresh)
+window.addEventListener("beforeunload", () => {
+  if (typeof stopOuterBottomAlert === "function") {
+    stopOuterBottomAlert();
+    stopOuterBottomAlert = null;
+  }
+});
 
 /********************************************************************
  * Environment + logging
@@ -430,11 +449,15 @@ function afterNextPaint(fn) {
 }
 
 //identify when user is NOT at the extreeme bottom of the viewport (only on Chat_mode)
-function ensureAlertWhenOuterNotAtBottom({
-  tolerancePx = 2,          // how close counts as "bottom"
-  alertOncePerExit = true,  // avoid repeated alerts while scrolling
-} = {}) {
-  let wasAtBottom = true;   // assume initial state bottom-ish; will be computed
+function ensureAlertWhenOuterNotAtBottom(
+  iframe,
+  {
+    tolerancePx = 2,          // how close counts as "bottom"
+    alertOncePerExit = true,  // avoid repeated alerts while scrolling
+    pollMs = 250,             // catches "content grew" without scroll/resize
+  } = {}
+) {
+  let wasAtBottom = true;
   let alertedForThisExit = false;
 
   function isAtBottomNow() {
@@ -442,15 +465,23 @@ function ensureAlertWhenOuterNotAtBottom({
     const scrollTop = window.scrollY || docEl.scrollTop || 0;
     const viewportH = window.innerHeight || docEl.clientHeight || 0;
     const scrollH = docEl.scrollHeight || 0;
-
-    // At bottom if scrollTop + viewport >= scrollHeight (within tolerance)
     return scrollTop + viewportH >= scrollH - tolerancePx;
   }
 
-  function checkAndAlert() {
-    if (typeof lastMode === "undefined" || lastMode !== "chat_mode") {
-      return; // Only alert when mode is explicitly known and equal to chat_mode 
+  function isChatModeNow() {
+    try {
+      const doc = getIframeDoc(iframe);
+      if (!doc) return false;
+      return getDelphiMode(doc) === "chat_mode";
+    } catch {
+      return false;
     }
+  }
+
+  function checkAndAlert() {
+    // Only alert in chat_mode (live check, no dependency on enableIframeAutoResize scope)
+    if (!isChatModeNow()) return;
+
     const atBottom = isAtBottomNow();
 
     // Transition: bottom -> not bottom
@@ -469,16 +500,20 @@ function ensureAlertWhenOuterNotAtBottom({
     wasAtBottom = atBottom;
   }
 
-  // Run once immediately (so you know the starting state)
+  // Run once immediately
   checkAndAlert();
 
-  // Scroll + resize can both change bottom-ness
+  // Events
   window.addEventListener("scroll", checkAndAlert, { passive: true });
   window.addEventListener("resize", checkAndAlert, { passive: true });
+
+  // Poll: catches changes when the iframe grows and makes the page no longer at bottom
+  const pollId = setInterval(checkAndAlert, pollMs);
 
   return () => {
     window.removeEventListener("scroll", checkAndAlert);
     window.removeEventListener("resize", checkAndAlert);
+    clearInterval(pollId);
   };
 }
 
@@ -1050,16 +1085,12 @@ document.addEventListener("DOMContentLoaded", () => {
   waitForIframe("#delphi-frame", (iframe) => {
     // CSS + layout overrides (safe to re-run)
     injectOverridesIntoIframe(iframe);  
-
-    // Debug: alert as soon as the OUTER page is not at bottom
-    ensureAlertWhenOuterNotAtBottom({
-      tolerancePx: 2,
-      alertOncePerExit: true,
-    });
+    installOuterBottomAlert(iframe);
  
     // Re-run only CSS overrides on iframe reload
     iframe.addEventListener("load", () => {
       injectOverridesIntoIframe(iframe);
+      installOuterBottomAlert(iframe);
     });
   });
 
