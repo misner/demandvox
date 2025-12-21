@@ -509,7 +509,7 @@ function ensureOuterScrollToBottomButtonUI() {
  */
 function ensureOuterScrollToBottomButton(iframe, opts = {}) {
   const {
-    tolerancePx = 0,
+    tolerancePx = 8,
     rootMargin = "0px 0px 80px 0px", // treat near-bottom as "at bottom"
     pollMs = 250,
   } = opts;
