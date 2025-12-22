@@ -477,10 +477,15 @@ const DV_SCROLL_TO_BOTTOM_INNER_HTML = `
   </div>
 `;
 
-function dvIsChatModeNow() {
-  // Keep this aligned with how YOU currently track mode.
-  // In your file you’ve been using lastMode elsewhere; keep it centralized here.
-  return typeof lastMode === "string" ? lastMode === "chat_mode" : false;
+function dvIsChatModeNow(iframe) {
+  try {
+    const doc = iframe?.contentDocument || iframe?.contentWindow?.document;
+    if (!doc) return false;
+    return getDelphiMode(doc) === "chat_mode";
+  } catch (e) {
+    dvWarn("[dv-scrollbtn] dvIsChatModeNow failed", e);
+    return false;
+  }
 }
 
 function dvGetOuterScrollMetrics() {
@@ -514,7 +519,10 @@ function dvEnsureInjectedScrollToBottomInsideIframe(iframe) {
     if (!doc) return null;
 
     const host = dvFindDelphiScrollToBottomHost(doc);
-    if (!host) return null;
+    if (!host) {
+      dvLog("[dv-scrollbtn] Host .delphi-scroll-to-bottom not found yet");
+      return null;
+    }
 
     // Already injected?
     if (!host.querySelector(".origin-bottom")) {
@@ -532,6 +540,7 @@ function dvEnsureInjectedScrollToBottomInsideIframe(iframe) {
           },
           { passive: false }
         );
+        dvLog("[dv-scrollbtn] Injected inner HTML into host");
       }
     }
 
@@ -593,7 +602,7 @@ function ensureInjectedIframeScrollToBottomButton(iframe, opts = {}) {
 
   function update() {
     // Only run/show in chat_mode
-    if (!dvIsChatModeNow()) {
+    if (!dvIsChatModeNow(iframe)) {
       dvSetInjectedScrollToBottomVisible(iframe, false);
       return;
     }
@@ -1205,8 +1214,8 @@ document.addEventListener("DOMContentLoaded", () => {
     // CSS + layout overrides (safe to re-run)
     injectOverridesIntoIframe(iframe); 
     window.addEventListener("beforeunload", () => {
-      if (typeof iframe.__dvOuterScrollBtnStop === "function") {
-        iframe.__dvOuterScrollBtnStop();
+      if (typeof iframe.__dvInjectedScrollBtnStop === "function") {
+        iframe.__dvInjectedScrollBtnStop();
       }
     });
  
