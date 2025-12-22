@@ -908,8 +908,11 @@ function installIframeAutoScrollBlocker(iframe) {
   }
 
   function recentlyUserIntent() {
-    return Date.now() - lastUserIntentTs < USER_INTENT_GRACE_MS;
+    const outerTs = window.__dvOuterUserIntentTs || 0;
+    const ts = Math.max(lastUserIntentTs, outerTs);
+    return Date.now() - ts < USER_INTENT_GRACE_MS;
   }
+
 
 
   const inChatMode = () => getDelphiMode(doc) === "chat_mode";
@@ -974,6 +977,13 @@ function installIframeAutoScrollBlocker(iframe) {
   function startLock(reason) {
     if (!inChatMode()) {
       if (DEBUG) dvLog("[delphi-scroll] startLock ignored (not chat_mode)", reason);
+      return;
+    }
+
+    // Only lock when the user is NOT at bottom (i.e., they are reading above)
+    // If user is already at bottom, we let Delphi do its normal “follow the stream”.
+    if (window.__dvOuterAtBottom) {
+      if (DEBUG) dvLog("[delphi-scroll] startLock skipped (outer at bottom)", reason);
       return;
     }
 
@@ -1375,8 +1385,27 @@ document.addEventListener("DOMContentLoaded", () => {
   // ------------------------------------------------------------
   // OUTER PAGE USER SCROLL INTENT SIGNALS
   // ------------------------------------------------------------
-  window.addEventListener("wheel", () => {}, { passive: true });
-  window.addEventListener("touchmove", () => {}, { passive: true });
+    // ------------------------------------------------------------
+  // OUTER PAGE USER SCROLL INTENT SIGNALS
+  // ------------------------------------------------------------
+  // Used by the iframe autoscroll blocker to avoid “fighting the user”
+  // when the scrolling is happening on the parent page (not inside the iframe).
+  window.__dvOuterUserIntentTs = 0;
+
+  function dvMarkOuterUserIntent(reason) {
+    window.__dvOuterUserIntentTs = Date.now();
+    // dvLog("[delphi-scroll] outer user intent", reason); // uncomment if needed
+  }
+
+  window.addEventListener("wheel", () => dvMarkOuterUserIntent("wheel"), { passive: true });
+  window.addEventListener("touchmove", () => dvMarkOuterUserIntent("touchmove"), { passive: true });
+
+  // Keyboard scrolling on the OUTER page
+  window.addEventListener("keydown", (e) => {
+    const keys = ["PageDown", "PageUp", "Home", "End", "ArrowDown", "ArrowUp", " "];
+    if (keys.includes(e.key)) dvMarkOuterUserIntent("key:" + e.key);
+  }, true);
+
 
   waitForIframe("#delphi-frame", (iframe) => {
     // CSS + layout overrides (safe to re-run)
