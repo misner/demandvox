@@ -532,37 +532,7 @@ function enableIframeAutoResize(iframe) {
    ******************************************************************/
   let lastMode = getDelphiMode(doc);
   dvLog("[delphi-resize] initial mode:", lastMode);
-
-  /******************************************************************
-   * Scroll state flags
-   * ---------------------------------------------------------------
-   * userHasScrolled:
-   *   Becomes true once the user manually scrolls the outer page
-   *   while in chat mode. Prevents auto-scroll from fighting the user.
-   *
-   * firstAutoScrollDone:
-   *   Ensures auto-scroll runs only once per chat entry, even if
-   *   resize logic executes multiple times.
-   ******************************************************************/
-  let userHasScrolled = false;
-  let firstAutoScrollDone = false;
-
-  /******************************************************************
-   * Scroll outer page so iframe bottom aligns with viewport bottom
-   * ---------------------------------------------------------------
-   * This is what brings the composer into view in chat mode.
-   ******************************************************************/
-  function scrollOuterPageToIframeBottom() {
-    const rect = iframe.getBoundingClientRect();
-    const iframeBottomInPage = window.scrollY + rect.bottom;
-    const targetScrollTop = iframeBottomInPage - window.innerHeight;
-
-    if (targetScrollTop > 0) {
-      dvLog("[delphi-resize] Auto-scrolling outer page to", targetScrollTop);
-      window.scrollTo({ top: targetScrollTop, behavior: "auto" });
-    }
-  }
-
+  
   /******************************************************************
    * Choose a better "height root" per mode
    * ---------------------------------------------------------------
@@ -647,29 +617,7 @@ function enableIframeAutoResize(iframe) {
 
     const finalHeight = Math.max(contentHeight, minHeight);
     iframe.style.height = finalHeight + "px";
-
-    /**************************************************************
-     * Auto-scroll logic (steady state)
-     * -----------------------------------------------------------
-     * When we are already in chat mode, we may need one correction
-     * to keep the composer visible.
-     
-     * Auto-scroll logic (chat mode)
-     * -----------------------------------------------------------
-     * Ensures the composer is visible when entering chat.
-     * Runs:
-     * - Only in chat mode
-     * - Only if the user has not scrolled manually
-     * - Only once per chat entry
-     *
-     * Note:
-     * This correction is performed even if the iframe height
-     * does not exceed the viewport.
-     **************************************************************/
-    if (mode === "chat_mode" && !userHasScrolled && !firstAutoScrollDone) {
-      scrollOuterPageToIframeBottom();
-      firstAutoScrollDone = true;
-    }
+    
   }
 
   /**
@@ -751,14 +699,10 @@ function enableIframeAutoResize(iframe) {
     dvLog("[delphi-resize] mode change:", lastMode, "→", nextMode, `(source=${source})`);
 
     if (nextMode === "chat_mode") {
-      userHasScrolled = false;
-      firstAutoScrollDone = false;
-
+      // resize after the view mounts
       afterNextPaint(() => {
         resizeIframe();
-        scrollOuterPageToIframeBottom();
-        firstAutoScrollDone = true;
-      });      
+      });
     }
 
     if (nextMode === "call_mode" || nextMode === "overview_mode") {
@@ -800,23 +744,7 @@ function enableIframeAutoResize(iframe) {
 
     doc.__dvModeObserver = modeObserver;
     dvLog("[delphi-resize] Mode observer installed");
-  }
-
-  /******************************************************************
-   * Detect manual user scroll
-   * ---------------------------------------------------------------
-   * If the user scrolls while in chat mode, disable auto-scroll
-   * so we never fight the user.
-   ******************************************************************/
-  window.addEventListener(
-    "scroll",
-    () => {
-      if (getDelphiMode(doc) === "chat_mode") {
-        userHasScrolled = true;
-      }
-    },
-    { passive: true }
-  );
+  } 
 
   /******************************************************************
    * Initial sizing
