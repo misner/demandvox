@@ -879,50 +879,70 @@ function installIframeAutoScrollBlocker(iframe) {
   }
   win.__dvAutoScrollBlockerInstalled = true;
 
-  // --- configuration ---
-  const SEND_LOCK_MS = 1800; // lock briefly right after user sends a message
+  // --------------------------
+  // Configuration
+  // --------------------------
+  const STREAM_IDLE_MS = 650; // unlock after no chat DOM changes for this long
+  const DEBUG = true;
 
-  // --- state ---
-  let scrollLockUntilTs = 0;
+  // --------------------------
+  // State
+  // --------------------------
+  let lockActive = false;
+  let lockedOuterTop = 0;
+
   let lockedScroller = null;
-  let lockedScrollerLastTop = 0;
+  let lockedScrollerTop = 0;
 
-  const now = () => Date.now();
+  let guardRaf = 0;
+  let idleTimer = 0;
+  let streamObserver = null;
+
+  // User intent tracking: if the user is actively scrolling, we should not fight them.
+  let lastUserIntentTs = 0;
+  const USER_INTENT_GRACE_MS = 450; // during this window we assume scroll is user-driven
+
+  function markUserIntent(reason) {
+    lastUserIntentTs = Date.now();
+    if (DEBUG) dvLog("[delphi-scroll] user intent", reason);
+  }
+
+  function recentlyUserIntent() {
+    return Date.now() - lastUserIntentTs < USER_INTENT_GRACE_MS;
+  }
+
 
   const inChatMode = () => getDelphiMode(doc) === "chat_mode";
 
-  const outerNotAtBottom = () => {
-    if (typeof window.__dvOuterAtBottom !== "boolean") return false;
-    return window.__dvOuterAtBottom === false;
-  };
+  function getOuterScrollTop() {
+    const docEl = document.documentElement;
+    const body = document.body;
+    return (
+      window.pageYOffset ||
+      docEl.scrollTop ||
+      body.scrollTop ||
+      0
+    );
+  }
 
-  const shouldLockNow = () => {
-    if (!inChatMode()) return false;
-    if (now() < scrollLockUntilTs) return true; // just-sent lock window
-    return outerNotAtBottom();                  // user is reading above
-  };
-
-  // Find the most likely scrollable chat container inside the iframe
   function findChatScroller() {
     try {
-      // Prefer known containers first
       const candidates = [
         doc.querySelector(".delphi-chat-conversation"),
         doc.querySelector("[data-sentry-component='Talk']"),
       ].filter(Boolean);
 
-      // Add “any scrollable div” fallback
-      const all = Array.from(doc.querySelectorAll("div, main, section"));
+      // fallback: any scrollable element with meaningful scrollHeight
+      const all = Array.from(doc.querySelectorAll("div, main, section, ul"));
       for (const el of all) {
         const cs = win.getComputedStyle(el);
         const oy = cs?.overflowY;
-        const canScrollY = (oy === "auto" || oy === "scroll");
+        const canScrollY = oy === "auto" || oy === "scroll";
         if (!canScrollY) continue;
         if (el.scrollHeight <= el.clientHeight + 2) continue;
         candidates.push(el);
       }
 
-      // Pick the one with the largest scrollHeight as the chat scroller
       let best = null;
       let bestH = 0;
       for (const el of candidates) {
@@ -943,75 +963,225 @@ function installIframeAutoScrollBlocker(iframe) {
     if (lockedScroller && doc.contains(lockedScroller)) return lockedScroller;
     lockedScroller = findChatScroller();
     if (lockedScroller) {
-      lockedScrollerLastTop = lockedScroller.scrollTop || 0;
+      lockedScrollerTop = lockedScroller.scrollTop || 0;
       dvLog("[delphi-scroll] lockedScroller set:", lockedScroller);
     } else {
-      dvWarn("[delphi-scroll] No scrollable chat scroller found");
+      dvWarn("[delphi-scroll] No scrollable chat scroller found (OK if iframe has no internal scroll)");
     }
     return lockedScroller;
   }
 
-  // When locked, revert any scroll changes on the scroller
-  function onIframeScrollCapture(e) {
-    if (!shouldLockNow()) return;
+  function startLock(reason) {
+    if (!inChatMode()) {
+      if (DEBUG) dvLog("[delphi-scroll] startLock ignored (not chat_mode)", reason);
+      return;
+    }
+
+    // Capture positions immediately
+    lockedOuterTop = getOuterScrollTop();
 
     const scroller = ensureLockedScroller();
-    if (!scroller) return;
+    lockedScrollerTop = scroller ? (scroller.scrollTop || 0) : 0;
 
-    // Only revert if the scroll event is on (or bubbles from) the scroller
-    const target = e.target;
-    const isScrollerEvent =
-      target === scroller || (target && scroller.contains && scroller.contains(target));
+    lockActive = true;
 
-    if (!isScrollerEvent) return;
-
-    const currentTop = scroller.scrollTop || 0;
-    if (Math.abs(currentTop - lockedScrollerLastTop) > 1) {
-      dvLog("[delphi-scroll] REVERT scroller scrollTop", {
-        from: currentTop,
-        to: lockedScrollerLastTop,
+    if (DEBUG) {
+      dvLog("[delphi-scroll] LOCK ON", {
+        reason,
+        lockedOuterTop,
+        lockedScrollerTop,
+        hasScroller: Boolean(scroller),
       });
-      scroller.scrollTop = lockedScrollerLastTop;
-      e.stopImmediatePropagation?.();
-      e.stopPropagation?.();
+    }
+
+    // Start guard immediately (microtask) + sustained (rAF)
+    queueMicrotask(enforceLockOnce);
+    startGuardLoop();
+
+    // Start/refresh stream idle timer and observer
+    armStreamObserver();
+    bumpIdleTimer();
+  }
+
+  function stopLock(reason) {
+    if (!lockActive) return;
+
+    lockActive = false;
+
+    if (guardRaf) cancelAnimationFrame(guardRaf);
+    guardRaf = 0;
+
+    if (idleTimer) clearTimeout(idleTimer);
+    idleTimer = 0;
+
+    if (streamObserver) {
+      try { streamObserver.disconnect(); } catch {}
+      streamObserver = null;
+    }
+
+    if (DEBUG) dvLog("[delphi-scroll] LOCK OFF", { reason });
+  }
+
+  function bumpIdleTimer() {
+    if (!lockActive) return;
+
+    if (idleTimer) clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      stopLock("stream-idle");
+    }, STREAM_IDLE_MS);
+  }
+
+  function armStreamObserver() {
+    if (streamObserver) return;
+
+    const root =
+      doc.querySelector(".delphi-chat-conversation") ||
+      doc.querySelector("[data-sentry-component='Talk']") ||
+      doc.body;
+
+    if (!root) return;
+
+    streamObserver = new MutationObserver(() => {
+      // Any DOM change during streaming extends the lock window
+      if (!lockActive) return;
+      bumpIdleTimer();
+    });
+
+    streamObserver.observe(root, {
+      subtree: true,
+      childList: true,
+      characterData: true,
+      attributes: false,
+    });
+
+    if (DEBUG) dvLog("[delphi-scroll] stream observer armed");
+  }
+
+  function enforceLockOnce() {
+    if (!lockActive) return;
+
+    const userActive = recentlyUserIntent();
+
+    // OUTER page: only block *downward* movement that is not user-driven
+    const outerTop = getOuterScrollTop();
+
+    if (userActive) {
+      // User is scrolling: accept new baseline
+      lockedOuterTop = outerTop;
+    } else {
+      // Delphi/programmatic scroll usually pushes downward; block only that direction
+      if (outerTop > lockedOuterTop + 1) {
+        window.scrollTo(0, lockedOuterTop);
+        if (DEBUG) dvLog("[delphi-scroll] REVERT outer scroll down", { from: outerTop, to: lockedOuterTop });
+      } else if (outerTop < lockedOuterTop - 1) {
+        // Upward movement: allow and update baseline (prevents “sticky ceiling”)
+        lockedOuterTop = outerTop;
+      }
+    }
+
+    // Internal scroller (if any): only block *downward* movement that is not user-driven
+    const scroller = ensureLockedScroller();
+    if (scroller) {
+      const cur = scroller.scrollTop || 0;
+
+      if (userActive) {
+        lockedScrollerTop = cur;
+      } else {
+        if (cur > lockedScrollerTop + 1) {
+          scroller.scrollTop = lockedScrollerTop;
+          if (DEBUG) dvLog("[delphi-scroll] REVERT scroller scroll down", { from: cur, to: lockedScrollerTop });
+        } else if (cur < lockedScrollerTop - 1) {
+          lockedScrollerTop = cur;
+        }
+      }
     }
   }
 
-  // Detect user “send” inside the iframe and lock briefly to prevent Delphi yanking to bottom
-  function installSendDetector() {
-    // We do not rely on Delphi internals; we capture Enter on textareas/inputs.
-    const onKeyDown = (e) => {
-      if (!inChatMode()) return;
 
-      // Enter without Shift typically means "send" in chat UIs
-      if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
-        // Set lock window
-        scrollLockUntilTs = now() + SEND_LOCK_MS;
+  function startGuardLoop() {
+    if (guardRaf) return;
 
-        // Capture scroller position at send-time
-        const scroller = ensureLockedScroller();
-        if (scroller) lockedScrollerLastTop = scroller.scrollTop || 0;
+    const tick = () => {
+      guardRaf = 0;
+      if (!lockActive) return;
 
-        dvLog("[delphi-scroll] Send detected -> lock until", scrollLockUntilTs);
-      }
+      enforceLockOnce();
+      guardRaf = requestAnimationFrame(tick);
     };
 
-    doc.addEventListener("keydown", onKeyDown, true);
-
-    return () => {
-      doc.removeEventListener("keydown", onKeyDown, true);
-    };
+    guardRaf = requestAnimationFrame(tick);
   }
 
-  // Patch a few obvious programmatic scroll APIs as “extra” safety
+  // --------------------------
+  // Send detection (multiple signals)
+  // --------------------------
+  function onKeyDownCapture(e) {
+    if (!inChatMode()) return;
+    if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+      startLock("enter-send");
+      // Do NOT stop propagation; Delphi must still receive Enter to send.
+    }
+  }
+
+  function onClickCapture(e) {
+    if (!inChatMode()) return;
+
+    const t = e.target;
+    if (!t) return;
+
+    // Common patterns: button[type=submit], form submit button, send icon button
+    const btn = t.closest?.("button");
+    if (!btn) return;
+
+    const type = (btn.getAttribute("type") || "").toLowerCase();
+    if (type === "submit") {
+      startLock("click-submit");
+      return;
+    }
+
+    // Heuristic: aria-label mentions send
+    const aria = (btn.getAttribute("aria-label") || "").toLowerCase();
+    if (aria.includes("send")) {
+      startLock("click-send-aria");
+      return;
+    }
+  }
+
+  function onSubmitCapture(e) {
+    if (!inChatMode()) return;
+    startLock("form-submit");
+  }
+
+  doc.addEventListener("keydown", onKeyDownCapture, true);
+  doc.addEventListener("click", onClickCapture, true);
+  doc.addEventListener("submit", onSubmitCapture, true);
+
+  // User intent signals (capture phase)
+  const onWheelCapture = () => markUserIntent("wheel");
+  const onTouchMoveCapture = () => markUserIntent("touchmove");
+
+  const onKeyIntentCapture = (e) => {
+    // Keys that typically scroll
+    const keys = ["PageDown", "PageUp", "Home", "End", "ArrowDown", "ArrowUp", " "];
+    if (keys.includes(e.key)) markUserIntent("key:" + e.key);
+  };
+
+  doc.addEventListener("wheel", onWheelCapture, { capture: true, passive: true });
+  doc.addEventListener("touchmove", onTouchMoveCapture, { capture: true, passive: true });
+  doc.addEventListener("keydown", onKeyIntentCapture, true);
+
+
+  // --------------------------
+  // Patch programmatic scroll APIs (secondary safety)
+  // --------------------------
   const origScrollIntoView = win.Element?.prototype?.scrollIntoView;
   const origScrollTo = win.scrollTo;
   const origScrollBy = win.scrollBy;
 
   if (origScrollIntoView) {
     win.Element.prototype.scrollIntoView = function (...args) {
-      if (shouldLockNow()) {
-        dvLog("[delphi-scroll] BLOCK scrollIntoView", this);
+      if (lockActive && inChatMode()) {
+        if (DEBUG) dvLog("[delphi-scroll] BLOCK scrollIntoView", this);
         return;
       }
       return origScrollIntoView.apply(this, args);
@@ -1020,8 +1190,8 @@ function installIframeAutoScrollBlocker(iframe) {
 
   if (typeof origScrollTo === "function") {
     win.scrollTo = function (...args) {
-      if (shouldLockNow()) {
-        dvLog("[delphi-scroll] BLOCK window.scrollTo", args);
+      if (lockActive && inChatMode()) {
+        if (DEBUG) dvLog("[delphi-scroll] BLOCK iframe window.scrollTo", args);
         return;
       }
       return origScrollTo.apply(this, args);
@@ -1030,26 +1200,28 @@ function installIframeAutoScrollBlocker(iframe) {
 
   if (typeof origScrollBy === "function") {
     win.scrollBy = function (...args) {
-      if (shouldLockNow()) {
-        dvLog("[delphi-scroll] BLOCK window.scrollBy", args);
+      if (lockActive && inChatMode()) {
+        if (DEBUG) dvLog("[delphi-scroll] BLOCK iframe window.scrollBy", args);
         return;
       }
       return origScrollBy.apply(this, args);
     };
   }
 
-  // Install scroll capture (critical part: blocks scroller yanks)
-  doc.addEventListener("scroll", onIframeScrollCapture, true);
-
-  // Install send detector
-  const uninstallSendDetector = installSendDetector();
-
-  dvLog("[delphi-scroll] AutoScroll blocker installed (with scroller lock)");
+  dvLog("[delphi-scroll] AutoScroll blocker installed (HARD LOCK on send)");
 
   const uninstall = () => {
     try {
-      doc.removeEventListener("scroll", onIframeScrollCapture, true);
-      uninstallSendDetector?.();
+      stopLock("uninstall");
+
+      doc.removeEventListener("keydown", onKeyDownCapture, true);
+      doc.removeEventListener("click", onClickCapture, true);
+      doc.removeEventListener("submit", onSubmitCapture, true);
+
+      doc.removeEventListener("wheel", onWheelCapture, true);
+      doc.removeEventListener("touchmove", onTouchMoveCapture, true);
+      doc.removeEventListener("keydown", onKeyIntentCapture, true);
+
 
       if (origScrollIntoView && win.Element?.prototype) {
         win.Element.prototype.scrollIntoView = origScrollIntoView;
@@ -1066,6 +1238,7 @@ function installIframeAutoScrollBlocker(iframe) {
   win.__dvAutoScrollBlockerUninstall = uninstall;
   return uninstall;
 }
+
 
 
 function injectOverridesIntoIframe(iframe) {
