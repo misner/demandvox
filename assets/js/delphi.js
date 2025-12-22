@@ -4,11 +4,23 @@
 const MIN_IFRAME_VIEWPORT_RATIO = 0.87;
 const INTRO_TITLE = "Hi, I'm Michael";
 const RESIZE_INTERVAL_MS = 1500;
+const IFRAME_GO_TO_PROFILE = "Back to chat center";
+
+/**
+ * Flicker/jump reduction on SPA mode transitions:
+ * - We hide the iframe briefly while we:
+ *   1) pre-reset height (break dvh feedback loops)
+ *   2) measure until stable (a few RAF ticks)
+ * - Then we reveal once the height is stable.
+ */
+const MODE_ENTRY_STABILIZE_MAX_MS = 450; // cap total stabilization time
+const MODE_ENTRY_STABLE_FRAMES = 2;      // how many consecutive stable frames required
+const MODE_ENTRY_STABLE_EPS_PX = 2;      // "stable" tolerance in px
 
 /********************************************************************
  * Environment + logging
  * ------------------------------------------------------------------
- * We want verbose logs on preview instances (*.pages.dev)
+ * Enforce verbose logs on preview instances (*.pages.dev)
  * to debug embed behavior, but silence logs on production domains.
  *
  * IMPORTANT:
@@ -52,22 +64,48 @@ function dvError(...args) {
 /********************************************************************
  * Mode detector
  ********************************************************************/
+function isElementVisible(el, view) {
+  if (!el) return false;
+  try {
+    const cs = view?.getComputedStyle ? view.getComputedStyle(el) : null;
+    if (cs) {
+      if (cs.display === "none") return false;
+      if (cs.visibility === "hidden") return false;
+    }
+    // getClientRects() is a good proxy for "is it currently rendered/laid out"
+    return el.getClientRects().length > 0;
+  } catch {
+    // If we cannot compute, fallback to presence
+    return true;
+  }
+}
+
+function queryVisible(doc, selector) {
+  const view = doc?.defaultView || window;
+  const el = doc?.querySelector(selector);
+  return isElementVisible(el, view) ? el : null;
+}
+
 function getDelphiMode(doc) {
   if (!doc) return "unknown_mode";
 
-  // CHAT view: conversation + composer
-  if (doc.querySelector(".delphi-chat-conversation")) {
+  // Prefer "what is visible" rather than "what exists in DOM"
+  // because Delphi is a SPA and can keep previous screens mounted.
+
+  // 1) Call mode
+  if (queryVisible(doc, ".delphi-call-container")) return "call_mode";
+
+  // 2) Chat mode
+  if (
+    queryVisible(doc, ".delphi-chat-conversation") ||
+    queryVisible(doc, "[data-sentry-component='Talk']")
+  ) {
     return "chat_mode";
   }
 
-  // OVERVIEW / PROFILE view
-  if (doc.querySelector(".delphi-profile-container")) {
-    return "overview_mode";
-  }
+  // 3) Overview / Profile mode
+  if (queryVisible(doc, ".delphi-profile-container")) return "overview_mode";
 
-  if (doc.querySelector(".delphi-call-container")) {
-    return "call_mode";
-  }
   return "unknown_mode";
 }
 
@@ -149,6 +187,13 @@ function addDelphiDomRule(iframe, rule) {
  * Add reusable rule builders (so adding more later is easy)
  *   Later, when you want more behaviors, you add more builders like: ruleSetAttribute,
  *   ruleMoveElement, ruleSwapImageSrc, ruleRemoveElement …without adding more observers.
+ * Note on when to use Rules and when to use CSS_INJECT futher below
+ *   Use Rules to change/remove an element; use CSS_INJECT to do a css injection noably 
+ *   when it's on a Tailwind utility class (ex: pt6) and we want an !important override 
+ *   that reliably beats class-based styling.
+ *   Why we don't need a separate DOM rule for padding, because: tailwind css is class-driven, so inline el.style.paddingTop 
+ *   can still lose if later renders re-apply classes/styles and CSS_INJECT use! important
+ *   making it stable across re-renders.
  ********************************************************************/
 function ruleForceText({ name, selector, getText }) {
   return {
@@ -183,6 +228,127 @@ function ruleHideButKeepLayout({ name, selector }) {
   };
 }
 
+function ruleRemoveElement({ name, selector }) {
+  return {
+    name,
+    apply(doc) {
+      const el = doc.querySelector(selector);
+      if (!el) return;
+
+      // Idempotency guard in case the node is re-mounted quickly
+      if (el.__dvRemoved) return;
+      el.__dvRemoved = true;
+
+      // Remove element entirely from the DOM
+      el.remove();
+      
+      dvLog(`[delphi] ${name}: element removed from DOM`);
+    },
+  };
+}
+
+/**
+ * ---------------------------------------------------------------
+ * Call header (DESKTOP ONLY):
+ * Replace Delphi logo with "Back to chat"
+ *
+ * Mobile behavior:
+ * - No change (Delphi logo area remains hidden)
+ *
+ * Desktop behavior:
+ * - Chevron remains visible
+ * - Delphi logo is replaced with a text CTA
+ * ---------------------------------------------------------------
+ */
+function ruleCallHeaderBackToChatLink() {
+  const selector = "header.delphi-call-header a[aria-label='Delphi']";
+
+  return {
+    name: "call-header-back-to-chat-link",
+
+    apply(doc) {
+      const link = doc.querySelector(selector);
+      if (!link) return;
+
+      // idempotency guard
+      if (link.__dvBackToChatApplied) return;
+      link.__dvBackToChatApplied = true;
+
+      // Make it go where the chevron takes you
+      link.setAttribute("href", "/chat");
+
+      // Replace the SVG (and any children) with text
+      link.textContent = IFRAME_GO_TO_PROFILE;
+
+      // Reset classes then apply desired styling (desktop only)
+      link.className = "";
+      link.classList.add("text-sand-11", "hidden", "text-sm", "font-medium", "md:block");
+
+      // Keep it from wrapping, and ensure it behaves like a text link
+      link.style.whiteSpace = "nowrap";
+      link.style.display = "inline-flex";
+      link.style.alignItems = "center";
+
+      // Optional, but harmless
+      link.setAttribute("aria-label", "Back to Chat center");
+
+      // Hide the vertical divider next to the logo
+      const divider = link.closest("span")?.nextElementSibling;
+      if (divider && divider.getAttribute("role") === "presentation") {
+        divider.style.visibility = "hidden";
+      }
+    },
+  };
+}
+
+/**
+ * Hide Delphi logo in PROFILE / OVERVIEW header
+ * while keeping layout stable and removing interaction.
+ */
+function ruleProfileHeaderHideDelphiLogo() {
+  return {
+    name: "profile-header-delphi-logo-hidden",
+
+    // Profile / Overview ONLY
+    selector: ".delphi-profile-container > header a[aria-label='Delphi']",
+
+    apply(doc) {
+      const el = doc.querySelector(this.selector);
+      if (!el) return;
+
+      // 1. Hide visually BUT keep layout space
+      if (el.style.visibility !== "hidden") {
+        el.style.visibility = "hidden";
+      }
+
+      // 2. Prevent any interaction
+      if (el.style.pointerEvents !== "none") {
+        el.style.pointerEvents = "none";
+      }
+
+      // 3. Defensive: prevent keyboard / navigation activation
+      el.removeAttribute("href");
+      el.removeAttribute("role");
+    },
+  };
+}
+
+function ruleCallModeRemoveNameH2() {
+  return ruleRemoveElement({
+    name: "call-mode-name-h2-removed",
+    selector:
+      "div.delphi-call-container h2.delphi-call-clone-indicator-title",
+  });
+}
+
+function ruleRemoveScrollToBottomButton() {
+  return ruleRemoveElement({
+    name: "scroll-to-bottom-removed",
+    selector: ".delphi-scroll-to-bottom",
+  });
+}
+
+
 /********************************************************************
  * Register all DOM enforcement rules
  ********************************************************************/
@@ -191,6 +357,8 @@ function registerDelphiDomRules(iframe) {
   if (iframe.__dvDomRulesInstalled) return;
   iframe.__dvDomRulesInstalled = true;
 
+  /* OVERVIEW_mode view
+  */  
   // Profile/Overview H1: "Hi, I'm Michael"
   addDelphiDomRule(
     iframe,
@@ -200,17 +368,121 @@ function registerDelphiDomRules(iframe) {
       getText: () => INTRO_TITLE,
     })
   );
-
-  // Chat header title: hide but keep layout (your existing requirement)
+  
   addDelphiDomRule(
     iframe,
-    ruleHideButKeepLayout({
-      name: "chat-header-title-hidden",
+    ruleProfileHeaderHideDelphiLogo()
+  );
+  
+  /* CHAT_mode view 
+  */  
+  addDelphiDomRule(
+    iframe,
+    ruleRemoveElement({
+      name: "chat-header-title-removed",
       selector: "h1.delphi-talk-title-text",
     })
   );
+  
+  /* GLOBAL – remove Delphi "scroll to bottom" arrow */
+  addDelphiDomRule(
+    iframe,
+    ruleRemoveScrollToBottomButton()
+  );
+
+  /* CALL_mode view
+  */
+  // Call header: hide delphi logo, pic & green dot
+  addDelphiDomRule(
+    iframe,
+    ruleHideButKeepLayout({
+      name: "call-header-profile-block-hidden",
+      selector: "header.delphi-call-header .delphi-call-header-link",
+    })
+  );
+
+  addDelphiDomRule(
+    iframe,
+    ruleCallHeaderBackToChatLink()
+  );
+
+  addDelphiDomRule(
+    iframe,
+    ruleCallModeRemoveNameH2()
+  );
+  
 }
 
+/********************************************************************
+ * Iframe Helpers
+ ********************************************************************/
+function setIframeBusy(iframe, isBusy) {
+  if (!iframe) return;
+
+  // Make hide immediate (avoid "fade then jump still visible")
+  if (isBusy) {
+    iframe.style.transition = "none";
+    iframe.style.opacity = "0";
+    iframe.style.pointerEvents = "none";
+  } else {
+    // Restore a subtle fade-in only when revealing
+    iframe.style.transition = "opacity 120ms ease";
+    iframe.style.opacity = "1";
+    iframe.style.pointerEvents = "auto";
+  }
+}
+
+//used to wait SP mounts iframe
+//wait for next paint (or two)” instead of “wait N ms” with a simple interval
+//It typically reduces variability and avoids feeling sluggish.
+function afterNextPaint(fn) {
+  requestAnimationFrame(() => requestAnimationFrame(fn));
+}
+
+/********************************************************************
+ * Outer scroll state tracker (parent page)
+ * ---------------------------------------------------------------
+ * Keeps a flag that tells us whether the OUTER page is at bottom.
+ * We use it to decide whether to block Delphi's native autoscroll.
+ ********************************************************************/
+function ensureOuterScrollTracker() {
+  // Install-once guard
+  if (window.__dvOuterScrollTrackerInstalled) return;
+  window.__dvOuterScrollTrackerInstalled = true;
+
+  window.__dvOuterAtBottom = true; // default optimistic
+
+  const compute = () => {
+    const docEl = document.documentElement;
+    const body = document.body;
+
+    const scrollTop =
+      window.pageYOffset ||
+      docEl.scrollTop ||
+      body.scrollTop ||
+      0;
+
+    const viewportH = window.innerHeight || docEl.clientHeight || 0;
+
+    const scrollH = Math.max(
+      body.scrollHeight || 0,
+      docEl.scrollHeight || 0
+    );
+
+    // Small tolerance because browsers can land at (scrollHeight - 1)
+    const tolerance = 2;
+
+    const atBottom = scrollTop + viewportH >= scrollH - tolerance;
+    window.__dvOuterAtBottom = atBottom;
+  };
+
+  // Compute immediately and on every scroll/resize
+  compute();
+  window.addEventListener("scroll", compute, { passive: true });
+  window.addEventListener("resize", compute);
+
+  dvLog("[delphi-scroll] Outer scroll tracker installed");
+}
 
 
 /********************************************************************
@@ -306,37 +578,7 @@ function enableIframeAutoResize(iframe) {
    ******************************************************************/
   let lastMode = getDelphiMode(doc);
   dvLog("[delphi-resize] initial mode:", lastMode);
-
-  /******************************************************************
-   * Scroll state flags
-   * ---------------------------------------------------------------
-   * userHasScrolled:
-   *   Becomes true once the user manually scrolls the outer page
-   *   while in chat mode. Prevents auto-scroll from fighting the user.
-   *
-   * firstAutoScrollDone:
-   *   Ensures auto-scroll runs only once per chat entry, even if
-   *   resize logic executes multiple times.
-   ******************************************************************/
-  let userHasScrolled = false;
-  let firstAutoScrollDone = false;
-
-  /******************************************************************
-   * Scroll outer page so iframe bottom aligns with viewport bottom
-   * ---------------------------------------------------------------
-   * This is what brings the composer into view in chat mode.
-   ******************************************************************/
-  function scrollOuterPageToIframeBottom() {
-    const rect = iframe.getBoundingClientRect();
-    const iframeBottomInPage = window.scrollY + rect.bottom;
-    const targetScrollTop = iframeBottomInPage - window.innerHeight;
-
-    if (targetScrollTop > 0) {
-      dvLog("[delphi-resize] Auto-scrolling outer page to", targetScrollTop);
-      window.scrollTo({ top: targetScrollTop, behavior: "auto" });
-    }
-  }
-
+  
   /******************************************************************
    * Choose a better "height root" per mode
    * ---------------------------------------------------------------
@@ -345,23 +587,24 @@ function enableIframeAutoResize(iframe) {
    * mounted in the DOM.
    *
    * So we try to measure the active view container first.
-   ******************************************************************/
+   ******************************************************************/  
   function getActiveHeightRoot(mode) {
+    // Match the (now visibility-based) mode detection.
+    // This prevents “mounted but hidden” screens from polluting height.
+    if (mode === "call_mode") {
+      return queryVisible(doc, ".delphi-call-container") || doc.body;
+    }
+
     if (mode === "chat_mode") {
-      // Prefer the chat view container if present
       return (
-        doc.querySelector(".delphi-chat-conversation") ||
-        doc.querySelector("[data-sentry-component='Talk']") ||
+        queryVisible(doc, ".delphi-chat-conversation") ||
+        queryVisible(doc, "[data-sentry-component='Talk']") ||
         doc.body
       );
     }
 
     if (mode === "overview_mode") {
-      return doc.querySelector(".delphi-profile-container") || doc.body;
-    }
-
-    if (mode === "call_mode") {
-      return doc.querySelector(".delphi-call-container") || doc.body;
+      return queryVisible(doc, ".delphi-profile-container") || doc.body;
     }
 
     return doc.body || doc.documentElement;
@@ -383,52 +626,171 @@ function enableIframeAutoResize(iframe) {
     // Measure from the active view container when possible
     const root = getActiveHeightRoot(mode);
 
-    // scrollHeight is still the most practical metric, but on a smaller subtree
-    const contentHeight = root ? root.scrollHeight : doc.documentElement.scrollHeight;
+    // In chat_mode, the main content can live inside an internal scroll container.
+    // If we measure only that subtree, we may under-measure and lose access to the true top
+    // of the conversation on long threads (outer page can't scroll far enough).
+    // We therefore take the max across multiple roots (document + likely containers).
+    let contentHeight;
+    if (mode === "chat_mode") {
+      
+      /*****************************************************************       
+       * Chat height should be driven by the conversation content,
+       * not by document/body scrollHeight (those can include other
+       * hidden views and inflate the iframe height).
+       *****************************************************************/
+      const convo = doc.querySelector(".delphi-chat-conversation");
+      const talk = doc.querySelector("[data-sentry-component='Talk']");
+      const convoH = convo?.scrollHeight || 0;
+      const talkH = talk?.scrollHeight || 0;
+      const rootH = root?.scrollHeight || 0;
+      const docH = doc.documentElement?.scrollHeight || 0;
+
+      // Primary measurement: visible chat content
+      let best = Math.max(convoH, talkH, rootH);
+
+      // Defensive fallback: only trust docH if it's close to the best value,
+      // or if we couldn't find any meaningful chat root at all.
+      if (best === 0 || docH <= best * 1.2) {
+        best = Math.max(best, docH);
+      }
+
+      contentHeight = best;
+      
+    } else {
+      // scrollHeight is still the most practical metric, but on a smaller subtree
+      contentHeight = root ? root.scrollHeight : doc.documentElement.scrollHeight;
+    }
 
     const finalHeight = Math.max(contentHeight, minHeight);
-
     iframe.style.height = finalHeight + "px";
-
-    /**************************************************************
-     * Auto-scroll logic (steady state)
-     * -----------------------------------------------------------
-     * When we are already in chat mode, we may need one correction
-     * to keep the composer visible.
-     
-     * Auto-scroll logic (chat mode)
-     * -----------------------------------------------------------
-     * Ensures the composer is visible when entering chat.
-     * Runs:
-     * - Only in chat mode
-     * - Only if the user has not scrolled manually
-     * - Only once per chat entry
-     *
-     * Note:
-     * This correction is performed even if the iframe height
-     * does not exceed the viewport.
-     **************************************************************/
-    if (mode === "chat_mode" && !userHasScrolled && !firstAutoScrollDone) {
-      scrollOuterPageToIframeBottom();
-      firstAutoScrollDone = true;
-    }
+    
   }
 
-  /******************************************************************
-   * Detect manual user scroll
-   * ---------------------------------------------------------------
-   * If the user scrolls while in chat mode, disable auto-scroll
-   * so we never fight the user.
-   ******************************************************************/
-  window.addEventListener(
-    "scroll",
-    () => {
-      if (getDelphiMode(doc) === "chat_mode") {
-        userHasScrolled = true;
+  /**
+   * Stabilize height on mode entry (call/overview):
+   * - hide iframe immediately
+   * - pre-reset to baseline height
+   * - measure across RAF until height stops changing
+   * - set final height once stable, then reveal
+   */
+  function stabilizeHeightOnModeEntry(targetMode) {
+    const startedAt = performance.now();
+    const minHeight = Math.floor(window.innerHeight * MIN_IFRAME_VIEWPORT_RATIO);
+
+    setIframeBusy(iframe, true);
+
+    // Break dvh feedback loop right away
+    iframe.style.height = minHeight + "px";
+    dvLog("[delphi-resize] stabilize: pre-reset height", minHeight, "for", targetMode);
+
+    let lastMeasured = -1;
+    let stableFrames = 0;
+
+    const tick = () => {
+      const now = performance.now();
+      const modeNow = getDelphiMode(doc);
+
+      // If the mode changed again while stabilizing, abort safely
+      if (modeNow !== targetMode) {
+        dvLog("[delphi-resize] stabilize: aborted (mode changed)", targetMode, "→", modeNow);
+        setIframeBusy(iframe, false);
+        return;
       }
-    },
-    { passive: true }
-  );
+
+      // Measure using the active root for this mode
+      const root = getActiveHeightRoot(modeNow);
+      const contentHeight = root ? root.scrollHeight : doc.documentElement.scrollHeight;
+      const nextHeight = Math.max(contentHeight, minHeight);
+
+      // Apply during stabilization, but keep hidden
+      iframe.style.height = nextHeight + "px";
+
+      if (lastMeasured >= 0 && Math.abs(nextHeight - lastMeasured) <= MODE_ENTRY_STABLE_EPS_PX) {
+        stableFrames += 1;
+      } else {
+        stableFrames = 0;
+      }
+
+      lastMeasured = nextHeight;
+
+      const elapsed = now - startedAt;
+      const done = stableFrames >= MODE_ENTRY_STABLE_FRAMES || elapsed >= MODE_ENTRY_STABILIZE_MAX_MS;
+
+      if (done) {
+        dvLog("[delphi-resize] stabilize: done", {
+          mode: modeNow,
+          finalHeight: nextHeight,
+          stableFrames,
+          elapsed: Math.round(elapsed),
+        });
+
+        // Reveal after final height is already applied
+        requestAnimationFrame(() => setIframeBusy(iframe, false));
+        return;
+      }
+
+      requestAnimationFrame(tick);
+    };
+
+    requestAnimationFrame(tick);
+  }
+
+  /**
+   * Factorized mode-change handler so both:
+   * - MutationObserver (immediate)
+   * - setInterval (fallback)
+   * can share exactly the same logic.
+   */
+  function handleModeChange(nextMode, source) {
+    dvLog("[delphi-resize] mode change:", lastMode, "→", nextMode, `(source=${source})`);
+
+    if (nextMode === "chat_mode") {
+      // resize after the view mounts
+      afterNextPaint(() => {
+        resizeIframe();
+      });
+    }
+
+    if (nextMode === "call_mode" || nextMode === "overview_mode") {
+      stabilizeHeightOnModeEntry(nextMode);
+    }
+
+    lastMode = nextMode;
+  }
+
+  /**
+   * Immediate mode detection via MutationObserver:
+   * triggers stabilization as soon as Delphi swaps screens,
+   * instead of waiting for the 1.5s interval tick.
+   */
+  if (!doc.__dvModeObserverInstalled && doc.body) {
+    doc.__dvModeObserverInstalled = true;
+
+    let scheduled = false;
+
+    const scheduleCheck = () => {
+      if (scheduled) return;
+      scheduled = true;
+
+      requestAnimationFrame(() => {
+        scheduled = false;
+
+        const modeNow = getDelphiMode(doc);
+        if (modeNow !== lastMode) {
+          handleModeChange(modeNow, "mutation");
+        }
+      });
+    };
+
+    const modeObserver = new MutationObserver(scheduleCheck);
+    modeObserver.observe(doc.body, { childList: true, subtree: true, attributes: true });
+
+    // Optional: run once quickly after install (covers very fast transitions)
+    scheduleCheck();
+
+    doc.__dvModeObserver = modeObserver;
+    dvLog("[delphi-resize] Mode observer installed");
+  } 
 
   /******************************************************************
    * Initial sizing
@@ -452,45 +814,21 @@ function enableIframeAutoResize(iframe) {
    * A lightweight polling loop ensures resilience without
    * coupling to internal Delphi implementation details.
    **************************************************************/
+  // Periodic safety net:
+  // - Catches missed SPA transitions
+  // - Reconciles height if DOM mutates outside observers
   iframe.__dvResizeIntervalId = setInterval(() => {
+    // Always keep size fresh as a fallback
+    resizeIframe();
+    
     const mode = getDelphiMode(doc);
 
-    // Always keep size reasonably fresh
-    resizeIframe();
-
-    /**************************************************************
-     * Mode transition handling
-     **************************************************************/
+    // Fallback mode detection (in case mutations are missed)
     if (mode !== lastMode) {
-      dvLog("[delphi-resize] mode change:", lastMode, "→", mode);
-
-      /**********************************************************
-       * Entering chat mode
-       * -------------------------------------------------------
-       * We force a fresh scroll correction regardless of height.
-       * This fixes the case: start in overview, click Chat, and
-       * the composer is below the fold.
-       **********************************************************/
-      if (mode === "chat_mode") {
-        userHasScrolled = false;
-        firstAutoScrollDone = false;
-
-        // Let layout settle before correcting
-        setTimeout(() => {
-          resizeIframe();
-
-          // Always do the correction when entering chat
-          scrollOuterPageToIframeBottom();
-          firstAutoScrollDone = true;
-        }, 150);
-      }
-
-      lastMode = mode;
-    }
-  }, RESIZE_INTERVAL_MS);
+      handleModeChange(mode, "interval");
+    }    
+  }, RESIZE_INTERVAL_MS);//note
 }
-
-
 
 /********************************************************************
  * Pre-inject CSS IMMEDIATELY to kill iframe scrollbar
@@ -504,58 +842,114 @@ function preKillIframeScrollbar(iframe) {
 
     const doc = iframe.contentDocument || iframe.contentWindow.document;
     if (!doc) return;
-
-    const style = doc.createElement("style");
-    style.textContent = `
-      /* HARD override to remove scrollbars inside the iframe instantly */
-      html, body {
-        scrollbar-width: none !important;      /* Firefox */
-        -ms-overflow-style: none !important;   /* IE */
-      }
-      html::-webkit-scrollbar,
-      body::-webkit-scrollbar {
-        display: none !important;              /* Chrome / Safari */
-      }
-    `;
-    doc.head.appendChild(style);
+    
   } catch (e) {
     dvWarn("[delphi-styling] Cannot pre-inject scrollbar-kill CSS", e);
   }
 }
 
 /********************************************************************
- * Override Delphi copy
- ********************************************************************/
-// function hideTitleInTextChat(iframe) {
-//   try {
-//     const doc = iframe.contentDocument || iframe.contentWindow?.document;
-//     if (!doc) return;
-
-//     const apply = () => {
-//       const h1 = doc.querySelector("h1.delphi-talk-title-text");
-//       if (!h1) return;
-
-//       // Keep layout space so other header items don't shift
-//       if (h1.style.visibility !== "hidden") {
-//         h1.style.visibility = "hidden";
-//         dvLog("[delphi] Title hidden (layout preserved)");
-//       }
-//     };
-
-//     // Apply immediately
-//     apply();
-
-//     // Re-apply if Delphi re-renders the header
-//     const obs = new MutationObserver(apply);
-//     obs.observe(doc.body || doc.documentElement, { childList: true, subtree: true });
-//   } catch (e) {
-//     dvWarn("[delphi] Failed to hide iframe title", e);
-//   }
-// }
-
-/********************************************************************
  * Inject Over-rides into the iframe safely
  ********************************************************************/
+
+// Block Delphi native programmatic autoscroll (iframe)
+// Delphi likely uses scrollIntoView / scrollTo during streaming.
+// We block those calls ONLY when:
+// - we're in chat_mode, AND
+// - the outer page is NOT at bottom (user is reading above).
+// This reduces the "yank to bottom of answer" effect.
+function installIframeAutoScrollBlocker(iframe) {
+  let win;
+  let doc;
+
+  try {
+    win = iframe.contentWindow;
+    doc = iframe.contentDocument || win?.document;
+  } catch (e) {
+    dvWarn("[delphi-scroll] Cannot access iframe window for blocker", e);
+    return () => {};
+  }
+
+  if (!win || !doc) return () => {};
+
+  // Install-once per iframe window
+  if (win.__dvAutoScrollBlockerInstalled) {
+    dvLog("[delphi-scroll] AutoScroll blocker already installed");
+    return win.__dvAutoScrollBlockerUninstall || (() => {});
+  }
+  win.__dvAutoScrollBlockerInstalled = true;
+
+  const shouldBlockNow = () => {
+    // Only relevant in chat mode
+    const mode = getDelphiMode(doc);
+    if (mode !== "chat_mode") return false;
+
+    // If user is NOT at bottom of outer page, block programmatic yanks.
+    // If we can't know, default to NOT blocking (safer).
+    if (typeof window.__dvOuterAtBottom !== "boolean") return false;
+
+    return window.__dvOuterAtBottom === false;
+  };
+
+  // Keep originals
+  const origScrollIntoView = win.Element?.prototype?.scrollIntoView;
+  const origScrollTo = win.scrollTo;
+  const origScrollBy = win.scrollBy;
+
+  // Patch Element.scrollIntoView
+  if (origScrollIntoView) {
+    win.Element.prototype.scrollIntoView = function (...args) {
+      if (shouldBlockNow()) {
+        dvLog("[delphi-scroll] BLOCK scrollIntoView", this);
+        return;
+      }
+      return origScrollIntoView.apply(this, args);
+    };
+  }
+
+  // Patch window.scrollTo
+  if (typeof origScrollTo === "function") {
+    win.scrollTo = function (...args) {
+      if (shouldBlockNow()) {
+        dvLog("[delphi-scroll] BLOCK scrollTo", args);
+        return;
+      }
+      return origScrollTo.apply(this, args);
+    };
+  }
+
+  // Patch window.scrollBy
+  if (typeof origScrollBy === "function") {
+    win.scrollBy = function (...args) {
+      if (shouldBlockNow()) {
+        dvLog("[delphi-scroll] BLOCK scrollBy", args);
+        return;
+      }
+      return origScrollBy.apply(this, args);
+    };
+  }
+
+  dvLog("[delphi-scroll] AutoScroll blocker installed in iframe");
+
+  // Provide uninstall (optional but clean)
+  const uninstall = () => {
+    try {
+      if (origScrollIntoView && win.Element?.prototype) {
+        win.Element.prototype.scrollIntoView = origScrollIntoView;
+      }
+      if (typeof origScrollTo === "function") win.scrollTo = origScrollTo;
+      if (typeof origScrollBy === "function") win.scrollBy = origScrollBy;
+      dvLog("[delphi-scroll] AutoScroll blocker uninstalled");
+    } catch (e) {
+      dvWarn("[delphi-scroll] Failed to uninstall blocker", e);
+    }
+  };
+
+  win.__dvAutoScrollBlockerUninstall = uninstall;
+  return uninstall;
+}
+
+
 function injectOverridesIntoIframe(iframe) {
   dvLog("[delphi-styling] injectOverridesIntoIframe called");
 
@@ -577,6 +971,9 @@ function injectOverridesIntoIframe(iframe) {
       return;
     }
 
+    // Block Delphi native programmatic autoscroll (chat_mode only, conditional)
+    installIframeAutoScrollBlocker(iframe);
+
     const head = doc.head;
     if (!head) {
       dvError("[delphi-styling] No <head> in iframe doc");
@@ -594,8 +991,8 @@ function injectOverridesIntoIframe(iframe) {
     }
     
     style.textContent = `
-      /* Example: styling access confirmed */
-      /* .delphi-talk-container { background: red !important; } */
+      /* GENERAL e.g. across different Modes
+      */ 
 
       /* IMPORTANT: do NOT hide overflow here anymore or scrolling breaks */
       html, body {
@@ -621,8 +1018,24 @@ function injectOverridesIntoIframe(iframe) {
         display: flex !important;
         align-items: center !important;
         justify-content: space-between !important;
-      }
+      }   
       
+      /* OVERVIEW_MODE
+      */ 
+
+      /* CHAT_MODE
+      */
+      
+      /*Set as invisible to make sure ven if we remove
+      that it does not appear for a quick second before removal
+      (optional but harmless - alrady done inline) */
+      h1.delphi-talk-title-text {
+        visibility: hidden !important;
+      }
+
+      /* CALL_MODE
+      */ 
+
       /* Ensure the title block (avatar + hidden h1) sits on the left */
       nav.from-sand-1.bg-sand-1 .delphi-talk-title-link {
         justify-content: flex-start !important;
@@ -633,11 +1046,19 @@ function injectOverridesIntoIframe(iframe) {
       nav.from-sand-1.bg-sand-1 [data-sentry-component="TalkTitle"] {
         margin: 0 !important;
       }
-      
-      /* Keep existing title invisibility (you already did it inline) */
-      h1.delphi-talk-title-text {
+
+      /* Keep existing title invisibility
+      (optional but harmless - alreayd done inline) */
+      h1.delphi-call-header-title {
         visibility: hidden !important;
       }
+
+      /* Remove extra top padding after we remove the H2 
+          to have the CTA button 'start' closer from large picture */
+      .delphi-call-container .delphi-call-idle-container {
+        padding-top: 0 !important;
+      }
+      
     `;
     
     dvLog("[delphi-styling] CSS injected into iframe"); 
@@ -657,6 +1078,8 @@ function injectOverridesIntoIframe(iframe) {
  ********************************************************************/
 document.addEventListener("DOMContentLoaded", () => {
   dvLog("[delphi-styling] DOMContentLoaded");
+
+  ensureOuterScrollTracker();
 
   waitForIframe("#delphi-frame", (iframe) => {
     // CSS + layout overrides (safe to re-run)
