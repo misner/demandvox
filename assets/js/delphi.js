@@ -1372,6 +1372,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   ensureOuterScrollTracker();
 
+  // ------------------------------------------------------------
+  // OUTER PAGE USER SCROLL INTENT SIGNALS
+  // ------------------------------------------------------------
+  window.addEventListener("wheel", () => {}, { passive: true });
+  window.addEventListener("touchmove", () => {}, { passive: true });
+
   waitForIframe("#delphi-frame", (iframe) => {
     // CSS + layout overrides (safe to re-run)
     injectOverridesIntoIframe(iframe);  
