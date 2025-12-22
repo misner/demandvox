@@ -464,160 +464,172 @@ function ensureSentinelAfterIframe(iframe) {
   return sentinel;
 }
 
-/**
- * Creates a fixed CTA button on the parent page.
- */
-function ensureOuterScrollToBottomButtonUI() {
-  const id = "dv-scroll-bottom-btn";
-  let btn = document.getElementById(id);
-  if (btn) return btn;
 
-  btn = document.createElement("button");
-  btn.id = id;
-  btn.type = "button";
-  btn.textContent = "Scroll to bottom";
 
-  // Basic styling (adjust as you like)
-  btn.style.cssText = `
-    position: fixed;
-    left: 50%;
-    transform: translateX(-50%);
-    bottom: 20px;
-    z-index: 999999;
-    padding: 10px 14px;
-    border-radius: 999px;
-    border: 1px solid rgba(0,0,0,0.15);
-    background: rgba(255,255,255,0.9);
-    box-shadow: 0 6px 18px rgba(0,0,0,0.12);
-    font: 500 14px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-    cursor: pointer;
-    display: none;
-  `;
 
-  document.body.appendChild(btn);
-  return btn;
+const DV_SCROLL_TO_BOTTOM_INNER_HTML = `
+  <div class="origin-bottom" style="opacity: 1; transform: none; transform-origin: 50% 50% 0px;">
+    <button class="select-none border border-transparent text-sm font-medium font-sans flex justify-center items-center gap-2 motion-safe:transition cursor-pointer motion-safe:active:scale-[0.98] ring-offset-sand-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[var(--override-primary,_var(--blue-7))] disabled:opacity-50 disabled:pointer-events-none disabled:active:scale-100 text-sand-11 bg-transparent hover:bg-sand-2 hover:text-sand-12 active:text-sand-12 active:bg-sand-1 rounded-full bg-sand-1 shadow-glow pointer-events-auto size-7 rounded-full bg-opacity-50 backdrop-blur-md">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" class="duration-1000 will-change-transform motion-safe:transition-all rotate-180 text-sand-11 size-6" data-sentry-element="svg" data-sentry-component="ChevronSmallIcon" data-sentry-source-file="ChevronSmall.tsx">
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M12.3536 11.7678C12.1583 11.5725 11.8417 11.5725 11.6464 11.7678L8.70711 14.7071C8.31658 15.0976 7.68342 15.0976 7.29289 14.7071C6.90237 14.3166 6.90237 13.6834 7.29289 13.2929L10.2322 10.3536C11.2085 9.37726 12.7915 9.37726 13.7678 10.3536L16.7071 13.2929C17.0976 13.6834 17.0976 14.3166 16.7071 14.7071C16.3166 15.0976 15.6834 15.0976 15.2929 14.7071L12.3536 11.7678Z" fill="currentColor" data-sentry-element="path" data-sentry-source-file="ChevronSmall.tsx"></path>
+      </svg>
+    </button>
+  </div>
+`;
+
+function dvIsChatModeNow() {
+  // Keep this aligned with how YOU currently track mode.
+  // In your file you’ve been using lastMode elsewhere; keep it centralized here.
+  return typeof lastMode === "string" ? lastMode === "chat_mode" : false;
+}
+
+function dvGetOuterScrollMetrics() {
+  const docEl = document.documentElement;
+  const body = document.body;
+  const scrollTop = window.scrollY || docEl.scrollTop || body.scrollTop || 0;
+  const viewportH = window.innerHeight || docEl.clientHeight || 0;
+  const scrollH = Math.max(docEl.scrollHeight, body.scrollHeight);
+  return { scrollTop, viewportH, scrollH };
+}
+
+function dvOuterIsScrollable(tolerancePx = 2) {
+  const { viewportH, scrollH } = dvGetOuterScrollMetrics();
+  return scrollH > viewportH + tolerancePx;
+}
+
+function dvOuterIsAtBottom(tolerancePx = 8) {
+  const { scrollTop, viewportH, scrollH } = dvGetOuterScrollMetrics();
+  return scrollTop + viewportH >= scrollH - tolerancePx;
+}
+
+function dvFindDelphiScrollToBottomHost(doc) {
+  if (!doc) return null;
+  // Avoid Sentry targeting; use the actual class + data-sentry-component you provided
+  return doc.querySelector('div.delphi-scroll-to-bottom[data-sentry-component="ScrollToBottom"]');
+}
+
+function dvEnsureInjectedScrollToBottomInsideIframe(iframe) {
+  try {
+    const doc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!doc) return null;
+
+    const host = dvFindDelphiScrollToBottomHost(doc);
+    if (!host) return null;
+
+    // Already injected?
+    if (!host.querySelector(".origin-bottom")) {
+      host.innerHTML = DV_SCROLL_TO_BOTTOM_INNER_HTML;
+
+      const btn = host.querySelector("button");
+      if (btn) {
+        btn.addEventListener(
+          "click",
+          (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const { scrollH } = dvGetOuterScrollMetrics();
+            window.scrollTo({ top: scrollH, behavior: "smooth" });
+          },
+          { passive: false }
+        );
+      }
+    }
+
+    return host;
+  } catch (e) {
+    dvWarn("[delphi-styling] Cannot inject scroll-to-bottom into iframe", e);
+    return null;
+  }
+}
+
+function dvSetInjectedScrollToBottomVisible(iframe, visible) {
+  const doc = iframe.contentDocument || iframe.contentWindow?.document;
+  if (!doc) return;
+
+  const host = dvFindDelphiScrollToBottomHost(doc);
+  if (!host) return;
+
+  // Ensure content exists when we want to show it
+  if (visible) dvEnsureInjectedScrollToBottomInsideIframe(iframe);
+
+  // Toggle visibility
+  host.style.display = visible ? "" : "none";
 }
 
 /**
- * Recommended strategy:
- * - IntersectionObserver on a sentinel after the iframe (primary)
- * - scroll/resize polling fallback (secondary)
- *
- * IMPORTANT:
- * - Does NOT touch handleModeChange()
- * - Only shows in chat_mode (checked dynamically)
+ * Same detection idea you liked, but instead of building a new outer button,
+ * we inject Delphi's inner markup into the iframe host and show/hide it.
  */
-function ensureOuterScrollToBottomButton(iframe, opts = {}) {
+function ensureInjectedIframeScrollToBottomButton(iframe, opts = {}) {
   const {
     tolerancePx = 8,
-    rootMargin = "0px 0px 80px 0px", // treat near-bottom as "at bottom"
+    rootMargin = "0px 0px 120px 0px",
     pollMs = 250,
   } = opts;
 
-  // Install-once guard
-  if (iframe.__dvOuterScrollBtnInstalled) {
-    return iframe.__dvOuterScrollBtnStop || null;
+  // Install-once guard (handle reinject / iframe reload)
+  if (iframe.__dvInjectedScrollBtnStop) {
+    try { iframe.__dvInjectedScrollBtnStop(); } catch (_) {}
+    iframe.__dvInjectedScrollBtnStop = null;
   }
-  iframe.__dvOuterScrollBtnInstalled = true;
 
-  const btn = ensureOuterScrollToBottomButtonUI();
+  // Sentinel sits AFTER the iframe in the parent DOM
   const sentinel = ensureSentinelAfterIframe(iframe);
 
-  const doc = getIframeDoc(iframe);
+  let ioAtBottom = null;
 
-  function inChatMode() {
-    try {
-      const d = getIframeDoc(iframe);
-      if (!d) return false;
-      return getDelphiMode(d) === "chat_mode";
-    } catch {
-      return false;
-    }
-  }
+  const io = new IntersectionObserver(
+    (entries) => {
+      const entry = entries && entries[0];
+      if (!entry) return;
+      // If sentinel is intersecting, user is at/near bottom
+      ioAtBottom = entry.isIntersecting === true;
+      update();
+    },
+    { root: null, rootMargin, threshold: 0.01 }
+  );
 
-  function scrollToBottom() {
-    // Scroll so the iframe bottom aligns with viewport bottom
-    const rect = iframe.getBoundingClientRect();
-    const iframeBottomInPage = window.scrollY + rect.bottom;
-    const targetScrollTop = iframeBottomInPage - window.innerHeight;
+  io.observe(sentinel);
 
-    window.scrollTo({
-      top: Math.max(0, targetScrollTop),
-      behavior: "smooth",
-    });
-  }
-
-  btn.addEventListener("click", () => scrollToBottom(), { passive: true });
-
-  // ---- Primary: IntersectionObserver sentinel visibility ----
-  let io = null;
-  // IMPORTANT:
-  // Start as "not visible" so the button can show immediately at page load
-  // (before IntersectionObserver delivers its first callback).
-  let sentinelIsVisible = false;
-
-  function updateButtonVisibility(reason) {
-    // Only in chat_mode
-    if (!inChatMode()) {
-      btn.style.display = "none";
+  function update() {
+    // Only run/show in chat_mode
+    if (!dvIsChatModeNow()) {
+      dvSetInjectedScrollToBottomVisible(iframe, false);
       return;
     }
 
-    // Show if NOT at bottom (via sentinel or fallback)
-    const atBottom = sentinelIsVisible || isOuterPageAtBottom(tolerancePx);
-    btn.style.display = atBottom ? "none" : "block";
+    // If page is not scrollable, never show
+    if (!dvOuterIsScrollable(2)) {
+      dvSetInjectedScrollToBottomVisible(iframe, false);
+      return;
+    }
+
+    // Bottom state: prefer IO when available, but ALWAYS have math fallback
+    const mathAtBottom = dvOuterIsAtBottom(tolerancePx);
+    const atBottom = (ioAtBottom === null) ? mathAtBottom : (ioAtBottom || mathAtBottom);
+
+    dvSetInjectedScrollToBottomVisible(iframe, !atBottom);
   }
 
-  try {
-    io = new IntersectionObserver(
-      (entries) => {
-        const entry = entries && entries[0];
-        sentinelIsVisible = Boolean(entry && entry.isIntersecting);
-        updateButtonVisibility("io");
-      },
-      {
-        root: null,
-        threshold: 0.01,
-        rootMargin,
-      }
-    );
-    io.observe(sentinel);
-  } catch (e) {
-    dvWarn("[dv-scroll-btn] IntersectionObserver failed, will rely on fallback", e);
-    io = null;
-  }
+  // Poll fallback so it works even when IO does not fire at "very top"
+  const timer = setInterval(update, pollMs);
 
-  // ---- Secondary fallback: scroll/resize + poll ----
-  const onScrollOrResize = () => updateButtonVisibility("scroll/resize");
-  window.addEventListener("scroll", onScrollOrResize, { passive: true });
-  window.addEventListener("resize", onScrollOrResize, { passive: true });
-
-  const pollId = window.setInterval(() => {
-    // In case Delphi mode changes without causing scroll events
-    updateButtonVisibility("poll");
-  }, pollMs);
-
-  // Initial evaluation
-  updateButtonVisibility("init");
+  // Run immediately (important for the "outer page is at very top" case)
+  update();
 
   const stop = () => {
-    try {
-      if (io) io.disconnect();
-    } catch {}
-    window.removeEventListener("scroll", onScrollOrResize);
-    window.removeEventListener("resize", onScrollOrResize);
-    window.clearInterval(pollId);
-
-    // Hide button on teardown
-    btn.style.display = "none";
-
-    iframe.__dvOuterScrollBtnInstalled = false;
-    iframe.__dvOuterScrollBtnStop = null;
+    clearInterval(timer);
+    try { io.disconnect(); } catch (_) {}
+    try { sentinel.remove(); } catch (_) {}
+    // Optional: hide injected control when stopping
+    dvSetInjectedScrollToBottomVisible(iframe, false);
   };
 
-  iframe.__dvOuterScrollBtnStop = stop;
+  iframe.__dvInjectedScrollBtnStop = stop;
   return stop;
 }
+
+
 
 /********************************************************************
  * Wait until iframe exists
@@ -1173,7 +1185,7 @@ function injectOverridesIntoIframe(iframe) {
     // Enable automatic resizing after CSS injection
     enableIframeAutoResize(iframe);
 
-    ensureOuterScrollToBottomButton(iframe, {
+    ensureInjectedIframeScrollToBottomButton(iframe, {
       tolerancePx: 8,
       rootMargin: "0px 0px 120px 0px",
       pollMs: 250,
