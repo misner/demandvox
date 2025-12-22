@@ -440,6 +440,52 @@ function afterNextPaint(fn) {
 }
 
 /********************************************************************
+ * Outer scroll state tracker (parent page)
+ * ---------------------------------------------------------------
+ * Keeps a flag that tells us whether the OUTER page is at bottom.
+ * We use it to decide whether to block Delphi's native autoscroll.
+ ********************************************************************/
+function ensureOuterScrollTracker() {
+  // Install-once guard
+  if (window.__dvOuterScrollTrackerInstalled) return;
+  window.__dvOuterScrollTrackerInstalled = true;
+
+  window.__dvOuterAtBottom = true; // default optimistic
+
+  const compute = () => {
+    const docEl = document.documentElement;
+    const body = document.body;
+
+    const scrollTop =
+      window.pageYOffset ||
+      docEl.scrollTop ||
+      body.scrollTop ||
+      0;
+
+    const viewportH = window.innerHeight || docEl.clientHeight || 0;
+
+    const scrollH = Math.max(
+      body.scrollHeight || 0,
+      docEl.scrollHeight || 0
+    );
+
+    // Small tolerance because browsers can land at (scrollHeight - 1)
+    const tolerance = 2;
+
+    const atBottom = scrollTop + viewportH >= scrollH - tolerance;
+    window.__dvOuterAtBottom = atBottom;
+  };
+
+  // Compute immediately and on every scroll/resize
+  compute();
+  window.addEventListener("scroll", compute, { passive: true });
+  window.addEventListener("resize", compute);
+
+  dvLog("[delphi-scroll] Outer scroll tracker installed");
+}
+
+
+/********************************************************************
  * Wait until iframe exists
  ********************************************************************/
 function waitForIframe(selector, onFound) {
@@ -805,6 +851,105 @@ function preKillIframeScrollbar(iframe) {
 /********************************************************************
  * Inject Over-rides into the iframe safely
  ********************************************************************/
+
+// Block Delphi native programmatic autoscroll (iframe)
+// Delphi likely uses scrollIntoView / scrollTo during streaming.
+// We block those calls ONLY when:
+// - we're in chat_mode, AND
+// - the outer page is NOT at bottom (user is reading above).
+// This reduces the "yank to bottom of answer" effect.
+function installIframeAutoScrollBlocker(iframe) {
+  let win;
+  let doc;
+
+  try {
+    win = iframe.contentWindow;
+    doc = iframe.contentDocument || win?.document;
+  } catch (e) {
+    dvWarn("[delphi-scroll] Cannot access iframe window for blocker", e);
+    return () => {};
+  }
+
+  if (!win || !doc) return () => {};
+
+  // Install-once per iframe window
+  if (win.__dvAutoScrollBlockerInstalled) {
+    dvLog("[delphi-scroll] AutoScroll blocker already installed");
+    return win.__dvAutoScrollBlockerUninstall || (() => {});
+  }
+  win.__dvAutoScrollBlockerInstalled = true;
+
+  const shouldBlockNow = () => {
+    // Only relevant in chat mode
+    const mode = getDelphiMode(doc);
+    if (mode !== "chat_mode") return false;
+
+    // If user is NOT at bottom of outer page, block programmatic yanks.
+    // If we can't know, default to NOT blocking (safer).
+    if (typeof window.__dvOuterAtBottom !== "boolean") return false;
+
+    return window.__dvOuterAtBottom === false;
+  };
+
+  // Keep originals
+  const origScrollIntoView = win.Element?.prototype?.scrollIntoView;
+  const origScrollTo = win.scrollTo;
+  const origScrollBy = win.scrollBy;
+
+  // Patch Element.scrollIntoView
+  if (origScrollIntoView) {
+    win.Element.prototype.scrollIntoView = function (...args) {
+      if (shouldBlockNow()) {
+        dvLog("[delphi-scroll] BLOCK scrollIntoView", this);
+        return;
+      }
+      return origScrollIntoView.apply(this, args);
+    };
+  }
+
+  // Patch window.scrollTo
+  if (typeof origScrollTo === "function") {
+    win.scrollTo = function (...args) {
+      if (shouldBlockNow()) {
+        dvLog("[delphi-scroll] BLOCK scrollTo", args);
+        return;
+      }
+      return origScrollTo.apply(this, args);
+    };
+  }
+
+  // Patch window.scrollBy
+  if (typeof origScrollBy === "function") {
+    win.scrollBy = function (...args) {
+      if (shouldBlockNow()) {
+        dvLog("[delphi-scroll] BLOCK scrollBy", args);
+        return;
+      }
+      return origScrollBy.apply(this, args);
+    };
+  }
+
+  dvLog("[delphi-scroll] AutoScroll blocker installed in iframe");
+
+  // Provide uninstall (optional but clean)
+  const uninstall = () => {
+    try {
+      if (origScrollIntoView && win.Element?.prototype) {
+        win.Element.prototype.scrollIntoView = origScrollIntoView;
+      }
+      if (typeof origScrollTo === "function") win.scrollTo = origScrollTo;
+      if (typeof origScrollBy === "function") win.scrollBy = origScrollBy;
+      dvLog("[delphi-scroll] AutoScroll blocker uninstalled");
+    } catch (e) {
+      dvWarn("[delphi-scroll] Failed to uninstall blocker", e);
+    }
+  };
+
+  win.__dvAutoScrollBlockerUninstall = uninstall;
+  return uninstall;
+}
+
+
 function injectOverridesIntoIframe(iframe) {
   dvLog("[delphi-styling] injectOverridesIntoIframe called");
 
@@ -825,6 +970,9 @@ function injectOverridesIntoIframe(iframe) {
       dvError("[delphi-styling] iframe document is NULL");
       return;
     }
+
+    // Block Delphi native programmatic autoscroll (chat_mode only, conditional)
+    installIframeAutoScrollBlocker(iframe);
 
     const head = doc.head;
     if (!head) {
@@ -930,6 +1078,8 @@ function injectOverridesIntoIframe(iframe) {
  ********************************************************************/
 document.addEventListener("DOMContentLoaded", () => {
   dvLog("[delphi-styling] DOMContentLoaded");
+
+  ensureOuterScrollTracker();
 
   waitForIframe("#delphi-frame", (iframe) => {
     // CSS + layout overrides (safe to re-run)
