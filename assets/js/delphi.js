@@ -879,27 +879,138 @@ function installIframeAutoScrollBlocker(iframe) {
   }
   win.__dvAutoScrollBlockerInstalled = true;
 
-  const shouldBlockNow = () => {
-    // Only relevant in chat mode
-    const mode = getDelphiMode(doc);
-    if (mode !== "chat_mode") return false;
+  // --- configuration ---
+  const SEND_LOCK_MS = 1800; // lock briefly right after user sends a message
 
-    // If user is NOT at bottom of outer page, block programmatic yanks.
-    // If we can't know, default to NOT blocking (safer).
+  // --- state ---
+  let scrollLockUntilTs = 0;
+  let lockedScroller = null;
+  let lockedScrollerLastTop = 0;
+
+  const now = () => Date.now();
+
+  const inChatMode = () => getDelphiMode(doc) === "chat_mode";
+
+  const outerNotAtBottom = () => {
     if (typeof window.__dvOuterAtBottom !== "boolean") return false;
-
     return window.__dvOuterAtBottom === false;
   };
 
-  // Keep originals
+  const shouldLockNow = () => {
+    if (!inChatMode()) return false;
+    if (now() < scrollLockUntilTs) return true; // just-sent lock window
+    return outerNotAtBottom();                  // user is reading above
+  };
+
+  // Find the most likely scrollable chat container inside the iframe
+  function findChatScroller() {
+    try {
+      // Prefer known containers first
+      const candidates = [
+        doc.querySelector(".delphi-chat-conversation"),
+        doc.querySelector("[data-sentry-component='Talk']"),
+      ].filter(Boolean);
+
+      // Add “any scrollable div” fallback
+      const all = Array.from(doc.querySelectorAll("div, main, section"));
+      for (const el of all) {
+        const cs = win.getComputedStyle(el);
+        const oy = cs?.overflowY;
+        const canScrollY = (oy === "auto" || oy === "scroll");
+        if (!canScrollY) continue;
+        if (el.scrollHeight <= el.clientHeight + 2) continue;
+        candidates.push(el);
+      }
+
+      // Pick the one with the largest scrollHeight as the chat scroller
+      let best = null;
+      let bestH = 0;
+      for (const el of candidates) {
+        const h = el.scrollHeight || 0;
+        if (h > bestH) {
+          bestH = h;
+          best = el;
+        }
+      }
+      return best;
+    } catch (e) {
+      dvWarn("[delphi-scroll] findChatScroller failed", e);
+      return null;
+    }
+  }
+
+  function ensureLockedScroller() {
+    if (lockedScroller && doc.contains(lockedScroller)) return lockedScroller;
+    lockedScroller = findChatScroller();
+    if (lockedScroller) {
+      lockedScrollerLastTop = lockedScroller.scrollTop || 0;
+      dvLog("[delphi-scroll] lockedScroller set:", lockedScroller);
+    } else {
+      dvWarn("[delphi-scroll] No scrollable chat scroller found");
+    }
+    return lockedScroller;
+  }
+
+  // When locked, revert any scroll changes on the scroller
+  function onIframeScrollCapture(e) {
+    if (!shouldLockNow()) return;
+
+    const scroller = ensureLockedScroller();
+    if (!scroller) return;
+
+    // Only revert if the scroll event is on (or bubbles from) the scroller
+    const target = e.target;
+    const isScrollerEvent =
+      target === scroller || (target && scroller.contains && scroller.contains(target));
+
+    if (!isScrollerEvent) return;
+
+    const currentTop = scroller.scrollTop || 0;
+    if (Math.abs(currentTop - lockedScrollerLastTop) > 1) {
+      dvLog("[delphi-scroll] REVERT scroller scrollTop", {
+        from: currentTop,
+        to: lockedScrollerLastTop,
+      });
+      scroller.scrollTop = lockedScrollerLastTop;
+      e.stopImmediatePropagation?.();
+      e.stopPropagation?.();
+    }
+  }
+
+  // Detect user “send” inside the iframe and lock briefly to prevent Delphi yanking to bottom
+  function installSendDetector() {
+    // We do not rely on Delphi internals; we capture Enter on textareas/inputs.
+    const onKeyDown = (e) => {
+      if (!inChatMode()) return;
+
+      // Enter without Shift typically means "send" in chat UIs
+      if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+        // Set lock window
+        scrollLockUntilTs = now() + SEND_LOCK_MS;
+
+        // Capture scroller position at send-time
+        const scroller = ensureLockedScroller();
+        if (scroller) lockedScrollerLastTop = scroller.scrollTop || 0;
+
+        dvLog("[delphi-scroll] Send detected -> lock until", scrollLockUntilTs);
+      }
+    };
+
+    doc.addEventListener("keydown", onKeyDown, true);
+
+    return () => {
+      doc.removeEventListener("keydown", onKeyDown, true);
+    };
+  }
+
+  // Patch a few obvious programmatic scroll APIs as “extra” safety
   const origScrollIntoView = win.Element?.prototype?.scrollIntoView;
   const origScrollTo = win.scrollTo;
   const origScrollBy = win.scrollBy;
 
-  // Patch Element.scrollIntoView
   if (origScrollIntoView) {
     win.Element.prototype.scrollIntoView = function (...args) {
-      if (shouldBlockNow()) {
+      if (shouldLockNow()) {
         dvLog("[delphi-scroll] BLOCK scrollIntoView", this);
         return;
       }
@@ -907,38 +1018,45 @@ function installIframeAutoScrollBlocker(iframe) {
     };
   }
 
-  // Patch window.scrollTo
   if (typeof origScrollTo === "function") {
     win.scrollTo = function (...args) {
-      if (shouldBlockNow()) {
-        dvLog("[delphi-scroll] BLOCK scrollTo", args);
+      if (shouldLockNow()) {
+        dvLog("[delphi-scroll] BLOCK window.scrollTo", args);
         return;
       }
       return origScrollTo.apply(this, args);
     };
   }
 
-  // Patch window.scrollBy
   if (typeof origScrollBy === "function") {
     win.scrollBy = function (...args) {
-      if (shouldBlockNow()) {
-        dvLog("[delphi-scroll] BLOCK scrollBy", args);
+      if (shouldLockNow()) {
+        dvLog("[delphi-scroll] BLOCK window.scrollBy", args);
         return;
       }
       return origScrollBy.apply(this, args);
     };
   }
 
-  dvLog("[delphi-scroll] AutoScroll blocker installed in iframe");
+  // Install scroll capture (critical part: blocks scroller yanks)
+  doc.addEventListener("scroll", onIframeScrollCapture, true);
 
-  // Provide uninstall (optional but clean)
+  // Install send detector
+  const uninstallSendDetector = installSendDetector();
+
+  dvLog("[delphi-scroll] AutoScroll blocker installed (with scroller lock)");
+
   const uninstall = () => {
     try {
+      doc.removeEventListener("scroll", onIframeScrollCapture, true);
+      uninstallSendDetector?.();
+
       if (origScrollIntoView && win.Element?.prototype) {
         win.Element.prototype.scrollIntoView = origScrollIntoView;
       }
       if (typeof origScrollTo === "function") win.scrollTo = origScrollTo;
       if (typeof origScrollBy === "function") win.scrollBy = origScrollBy;
+
       dvLog("[delphi-scroll] AutoScroll blocker uninstalled");
     } catch (e) {
       dvWarn("[delphi-scroll] Failed to uninstall blocker", e);
