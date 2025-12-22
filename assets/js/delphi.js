@@ -341,6 +341,13 @@ function ruleCallModeRemoveNameH2() {
   });
 }
 
+function ruleRemoveScrollToBottomButton() {
+  return ruleRemoveElement({
+    name: "scroll-to-bottom-removed",
+    selector: ".delphi-scroll-to-bottom",
+  });
+}
+
 
 /********************************************************************
  * Register all DOM enforcement rules
@@ -375,6 +382,12 @@ function registerDelphiDomRules(iframe) {
       name: "chat-header-title-removed",
       selector: "h1.delphi-talk-title-text",
     })
+  );
+  
+  /* GLOBAL – remove Delphi "scroll to bottom" arrow */
+  addDelphiDomRule(
+    iframe,
+    ruleRemoveScrollToBottomButton()
   );
 
   /* CALL_mode view
