@@ -918,28 +918,6 @@ function injectOverridesIntoIframe(iframe) {
         visibility: hidden !important;
       }
 
-      .delphi-chat-conversation {
-        overflow: visible !important;
-        height: auto !important;
-        max-height: none !important;
-        overscroll-behavior: auto !important;
-        -webkit-overflow-scrolling: auto !important;
-
-        /* If Delphi uses a mask/fade at the top when scrolled, disable it */
-        -webkit-mask-image: none !important;
-        mask-image: none !important;
-      }
-
-      /* Defensive: some layouts apply the scroll constraint one level up */
-      .delphi-chat-container,
-      .delphi-talk-container,
-      .delphi-talk,
-      .delphi-talk-content {
-        overflow: visible !important;
-        height: auto !important;
-        max-height: none !important;
-      }
-
       /* CALL_MODE
       */ 
 
