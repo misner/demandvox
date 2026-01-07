@@ -348,8 +348,7 @@ function ruleRemoveScrollToBottomButton() {
   });
 }
 
-//Remove text sign-in msg on Dialog for Call mode
-// ⬇⬇⬇ ADD THIS BLOCK ⬇⬇⬇
+//remove visible welcome title on sign-in Dialogs
 function ruleRemoveAuthDialogWelcomeTitle() {
   return {
     name: "auth-dialog-welcome-title-removed",
@@ -385,7 +384,7 @@ function registerDelphiDomRules(iframe) {
 
   /* GENERAL
   */
-  // AUTH MODAL – remove visible welcome title 
+  // AUTH MODAL – remove visible welcome title on sign-in Dialogs
   addDelphiDomRule(
     iframe,
     ruleRemoveAuthDialogWelcomeTitle()
