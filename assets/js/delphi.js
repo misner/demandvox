@@ -918,25 +918,26 @@ function injectOverridesIntoIframe(iframe) {
         visibility: hidden !important;
       }
 
-      // Critical: prevent Delphi from using an internal scroller that
-      // can get programmatically scrolled to the bottom on send.
-      // This is what makes early messages unreachable (your Image 1).
-      //
-      .delphi-chat-conversation,
-      [data-sentry-component="Talk"] {
+      .delphi-chat-conversation {
         overflow: visible !important;
-        max-height: none !important;
         height: auto !important;
+        max-height: none !important;
+        overscroll-behavior: auto !important;
+        -webkit-overflow-scrolling: auto !important;
+
+        /* If Delphi uses a mask/fade at the top when scrolled, disable it */
+        -webkit-mask-image: none !important;
+        mask-image: none !important;
       }
 
-      //Some layouts put overflow/max-height on intermediate wrappers.
-      //This is a defensive widening of the rule without relying on volatile ids.
+      /* Defensive: some layouts apply the scroll constraint one level up */
+      .delphi-chat-container,
       .delphi-talk-container,
       .delphi-talk,
-      main {
+      .delphi-talk-content {
         overflow: visible !important;
-        max-height: none !important;
         height: auto !important;
+        max-height: none !important;
       }
 
       /* CALL_MODE
