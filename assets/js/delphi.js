@@ -348,6 +348,32 @@ function ruleRemoveScrollToBottomButton() {
   });
 }
 
+//Remove text sign-in msg on Dialog for Call mode
+// ⬇⬇⬇ ADD THIS BLOCK ⬇⬇⬇
+function ruleRemoveAuthDialogWelcomeTitle() {
+  return {
+    name: "auth-dialog-welcome-title-removed",
+    apply(doc) {
+      const dialog = doc.querySelector('div[role="dialog"]');
+      if (!dialog) return;
+
+      // Collect visible h2 elements only (exclude sr-only)
+      const visibleH2s = Array.from(
+        dialog.querySelectorAll("h2")
+      ).filter(h2 => !h2.classList.contains("sr-only"));
+
+      // We expect:
+      // - h2[0] = "Welcome to Delphi!"
+      if (visibleH2s.length < 1) return;
+
+      const target = visibleH2s[0];
+      target.remove();
+
+      dvLog("[delphi] auth-dialog-welcome-title-removed: element removed from DOM");
+    },
+  };
+}
+
 
 /********************************************************************
  * Register all DOM enforcement rules
@@ -356,6 +382,14 @@ function registerDelphiDomRules(iframe) {
   //Add “install once” guard to DOM watcher runtime
   if (iframe.__dvDomRulesInstalled) return;
   iframe.__dvDomRulesInstalled = true;
+
+  /* GENERAL
+  */
+  // AUTH MODAL – remove visible welcome title 
+  addDelphiDomRule(
+    iframe,
+    ruleRemoveAuthDialogWelcomeTitle()
+  );
 
   /* OVERVIEW_mode view
   */  
