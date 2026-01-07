@@ -918,6 +918,27 @@ function injectOverridesIntoIframe(iframe) {
         visibility: hidden !important;
       }
 
+      // Critical: prevent Delphi from using an internal scroller that
+      // can get programmatically scrolled to the bottom on send.
+      // This is what makes early messages unreachable (your Image 1).
+      //
+      .delphi-chat-conversation,
+      [data-sentry-component="Talk"] {
+        overflow: visible !important;
+        max-height: none !important;
+        height: auto !important;
+      }
+
+      //Some layouts put overflow/max-height on intermediate wrappers.
+      //This is a defensive widening of the rule without relying on volatile ids.
+      .delphi-talk-container,
+      .delphi-talk,
+      main {
+        overflow: visible !important;
+        max-height: none !important;
+        height: auto !important;
+      }
+
       /* CALL_MODE
       */ 
 
