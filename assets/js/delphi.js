@@ -619,29 +619,29 @@ function enableIframeAutoResize(iframe) {
     // We therefore take the max across multiple roots (document + likely containers).
     let contentHeight;
     if (mode === "chat_mode") {
-      
-      /*****************************************************************       
-       * Chat height should be driven by the conversation content,
-       * not by document/body scrollHeight (those can include other
-       * hidden views and inflate the iframe height).
-       *****************************************************************/
+      const win = doc.defaultView || iframe.contentWindow;
+
       const convo = doc.querySelector(".delphi-chat-conversation");
       const talk = doc.querySelector("[data-sentry-component='Talk']");
-      const convoH = convo?.scrollHeight || 0;
-      const talkH = talk?.scrollHeight || 0;
-      const rootH = root?.scrollHeight || 0;
+
+      // Compute "total height" as: (top offset of the container in the document) + (its full scrollHeight)
+      // This fixes the case where the header/intro area sits ABOVE the scroll container, which would otherwise
+      // be excluded and cause the "can't reach the very start" bug.
+      const totalHeight = (el) => {
+        if (!el || !win) return 0;
+        const r = el.getBoundingClientRect();
+        const topInDoc = r.top + (win.scrollY || 0);
+        return topInDoc + (el.scrollHeight || 0);
+      };
+
+      const convoTotal = totalHeight(convo);
+      const talkTotal = totalHeight(talk);
+      const rootTotal = totalHeight(root);
+
+      // Fallback: document height (can include hidden mounted views, so keep it as a fallback, not primary)
       const docH = doc.documentElement?.scrollHeight || 0;
 
-      // Primary measurement: visible chat content
-      let best = Math.max(convoH, talkH, rootH);
-
-      // Defensive fallback: only trust docH if it's close to the best value,
-      // or if we couldn't find any meaningful chat root at all.
-      if (best === 0 || docH <= best * 1.2) {
-        best = Math.max(best, docH);
-      }
-
-      contentHeight = best;
+      contentHeight = Math.max(convoTotal, talkTotal, rootTotal, docH);    
       
     } else {
       // scrollHeight is still the most practical metric, but on a smaller subtree
