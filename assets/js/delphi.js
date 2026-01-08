@@ -656,13 +656,11 @@ function enableIframeAutoResize(iframe) {
       const docH = doc.documentElement?.scrollHeight || 0;
 
       if (msgCount <= 1) {
-        // "Empty" chat: keep the embed roughly viewport-sized so the input is visible immediately.
-        // Delphi can render large spacer regions which inflate convo/talk totals.
-        const minHeight = Math.floor(window.innerHeight * MIN_IFRAME_VIEWPORT_RATIO);
-        const maxHeight = Math.floor(window.innerHeight * MAX_IFRAME_VIEWPORT_RATIO);
-        contentHeight = Math.max(minHeight, Math.min(maxHeight, docH));
+        // Empty/near-empty chat: DO NOT trust docH (it can be inflated by hidden SPA views/modals).
+        // Force a viewport-sized iframe so the input is visible immediately and no outer scroll is needed.
+        contentHeight = minHeight;
       } else {
-        // Real chat history: use the full totals so the conversation start stays reachable.
+        // Real chat history: use full totals so the conversation start stays reachable.
         contentHeight = Math.max(convoTotal, talkTotal, rootTotal, docH);
       }
   
