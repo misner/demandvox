@@ -597,6 +597,19 @@ function enableIframeAutoResize(iframe) {
     return doc.body || doc.documentElement;
   }
 
+  function getChatMessageCount(doc) {
+    try {
+      const convo = doc.querySelector("ul.delphi-chat-conversation");
+      if (!convo) return 0;
+  
+      // Most stable structure: messages are direct <li> children.
+      const items = convo.querySelectorAll(":scope > li");
+      return items && items.length ? items.length : convo.querySelectorAll("li").length;
+    } catch {
+      return 0;
+    }
+  }
+
   /******************************************************************
    * resizeIframe()
    * ---------------------------------------------------------------
@@ -622,6 +635,7 @@ function enableIframeAutoResize(iframe) {
       const win = doc.defaultView || iframe.contentWindow;
 
       const convo = doc.querySelector(".delphi-chat-conversation");
+      const msgCount = getChatMessageCount(doc);
       const talk = doc.querySelector("[data-sentry-component='Talk']");
 
       // Compute "total height" as: (top offset of the container in the document) + (its full scrollHeight)
@@ -641,7 +655,17 @@ function enableIframeAutoResize(iframe) {
       // Fallback: document height (can include hidden mounted views, so keep it as a fallback, not primary)
       const docH = doc.documentElement?.scrollHeight || 0;
 
-      contentHeight = Math.max(convoTotal, talkTotal, rootTotal, docH);    
+      if (msgCount <= 1) {
+        // "Empty" chat: keep the embed roughly viewport-sized so the input is visible immediately.
+        // Delphi can render large spacer regions which inflate convo/talk totals.
+        const minHeight = Math.floor(window.innerHeight * MIN_IFRAME_VIEWPORT_RATIO);
+        const maxHeight = Math.floor(window.innerHeight * MAX_IFRAME_VIEWPORT_RATIO);
+        contentHeight = Math.max(minHeight, Math.min(maxHeight, docH));
+      } else {
+        // Real chat history: use the full totals so the conversation start stays reachable.
+        contentHeight = Math.max(convoTotal, talkTotal, rootTotal, docH);
+      }
+  
       
     } else {
       // scrollHeight is still the most practical metric, but on a smaller subtree
