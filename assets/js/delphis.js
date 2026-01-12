@@ -107,7 +107,7 @@ function queryVisible(doc, selector) {
   return null;
 }
 
-function getDelphiMode(doc) {
+function (doc) {
   if (!doc) return "unknown_mode";
 
   // 1) Call mode
@@ -143,6 +143,27 @@ function extractFirstName(fullName) {
   if (tokens.length < 2) return null;
 
   return tokens[0];
+}
+
+function updateAndLogDelphiMode(doc) {
+  if (!doc) return "unknown_mode";
+
+  const nextMode = getDelphiMode(doc);
+  const prevMode = doc.__delphiMode || "unknown_mode";
+
+  if (nextMode !== prevMode) {
+    doc.__delphiMode = nextMode;
+
+    // Optional: expose it for debugging from the parent page DevTools.
+    // Note: this runs in iframe context, so we also mirror it to the parent window.
+    try {
+      window.__DELPHI_MODE__ = nextMode;
+    } catch {}
+
+    if (DV_DEBUG) dvLog(LOG_PREFIX, "mode changed:", prevMode, "→", nextMode);
+  }
+
+  return nextMode;
 }
 
 
@@ -240,6 +261,8 @@ function installIframeDomRuleEngine(iframe) {
 
   applyDomRules(doc);
 
+  updateAndLogDelphiMode(doc);//log Delphi mode
+
   if (doc.__delphiDomRulesInstalled) {
     dvLog(LOG_PREFIX, "dom rules already installed");
     return;
@@ -252,6 +275,7 @@ function installIframeDomRuleEngine(iframe) {
     scheduled = true;
     (doc.defaultView || window).requestAnimationFrame(() => {
       scheduled = false;
+      updateAndLogDelphiMode(doc);
       applyDomRules(doc);
     });
   };
@@ -261,7 +285,10 @@ function installIframeDomRuleEngine(iframe) {
 
   iframe.addEventListener("load", () => {
     const nextDoc = safeGetIframeDoc(iframe);
-    if (nextDoc) applyDomRules(nextDoc);
+    if (!nextDoc) return;
+
+    updateAndLogDelphiMode(nextDoc);//log updated delphi mode
+    applyDomRules(nextDoc);
   });
 
   dvLog(LOG_PREFIX, "dom rules engine installed in iframe");
