@@ -107,7 +107,7 @@ function queryVisible(doc, selector) {
   return null;
 }
 
-function (doc) {
+function getDelphiMode(doc) {
   if (!doc) return "unknown_mode";
 
   // 1) Call mode
