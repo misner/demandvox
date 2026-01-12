@@ -85,7 +85,7 @@ body {
 
 /* Sidebar: icon above label, narrow column */
 .sidebar {
-  position:fixed;
+  position:sticky;
   inset-block:0;
   inset-inline-start:0;
   width: var(--sidebar-width);
