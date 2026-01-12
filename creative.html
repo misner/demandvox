@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
-  <title>This is to test solution full page </title>
+  <title>Demandvox | Where you go for your B2B service providers.</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <!-- Main styles extracted into a separate file -->
   <link rel="stylesheet" href="assets/css/main.css">
@@ -10,40 +11,41 @@
     /* inline css */
   </style>
 </head>
+
 <body>
   <button class="mobile-menu-toggle" aria-label="Open navigation">
     <span class="mobile-menu-lines"></span>
   </button>
+
+  <div> 
+    <!-- Start of agent bot -->
+    <script id="delphi-page-script">
+      // Decide which ID to use based on hostname
+      const hostname = window.location.hostname;
+      const isPreview = hostname.endsWith('.pages.dev');
+      const DELPHI_ID = isPreview ?
+        'c9d56170-c0dc-400e-9ffe-ff499afcf6d9' // preview
+        : '74a48d08-8808-4778-b367-a106b5a371e1'; // production    
+      //Initialise the global delphi object
+      window.delphi = {
+        ...(window.delphi ?? {})
+      };
+      window.delphi.page = {
+        config: DELPHI_ID,
+        overrides: {
+          landingPage: 'OVERVIEW',
+        },
+        container: {
+          width: '100%',
+          height: '100%',
+          //height: '800px', 
+        },
+      };
+    </script>
+    <script id="delphi-page-bootstrap" src="https://embed.delphi.ai/loader.js"></script>
+    <!-- End of agent bot -->
+  </div>
   
-
-              <script id="delphi-page-script">
-
-                // Decide which ID to use based on hostname
-                const hostname = window.location.hostname;
-                const isPreview = hostname.endsWith('.pages.dev');
-            
-                const DELPHI_ID = isPreview
-                  ? 'c9d56170-c0dc-400e-9ffe-ff499afcf6d9'  // preview
-                  : '74a48d08-8808-4778-b367-a106b5a371e1'; // production    
-                
-                //Initialise the global delphi object
-                window.delphi = {...(window.delphi ?? {}) };
-                window.delphi.page = {
-                  config: DELPHI_ID,
-                  overrides: {
-                    landingPage: 'OVERVIEW',
-                  },
-                  container: {
-                    width: '100%',
-                    height: '100%',
-                    //height: '800px', 
-                  },
-                };
-              </script> 
-              <script id="delphi-page-bootstrap" src="https://embed.delphi.ai/loader.js"></script>
-
-            
-
-  <script src="assets/js/delphi.js"></script>
 </body>
+
 </html>
