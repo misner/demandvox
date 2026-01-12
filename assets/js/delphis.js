@@ -1,18 +1,48 @@
 /********************************************************************
- * Constants
+ * Environment + logging
+ * ------------------------------------------------------------------
+ * Enforce verbose logs on preview instances (*.pages.dev)
+ * to debug embed behavior, but silence logs on production domains.
+ *
+ * IMPORTANT:
+ * - Preview: hostname endsWith(".pages.dev")  → logs ON
+ * - Production: everything else               → logs OFF
  ********************************************************************/
-const IFRAME_GO_TO_PROFILE = "Back to chat center"; // keeping your constant
-const DELPHI_IFRAME_SELECTOR = "#delphi-frame";
-const LOG_PREFIX = "[delphi-domrules]";
-const IFRAME_WAIT_TIMEOUT_MS = 15000;
+function isPreviewHost() {
+  try {
+    return window.location.hostname.endsWith(".pages.dev");
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Debug flag used throughout this file.
+ * You can also override manually in DevTools if needed:
+ *   window.__DV_DEBUG__ = true;
+ */
+const DV_DEBUG = isPreviewHost() || Boolean(window.__DV_DEBUG__);
+
+/**
+ * Centralized logger (so production stays quiet).
+ */
+function dvLog(...args) {
+  if (DV_DEBUG) console.log(...args);
+}
+function dvWarn(...args) {
+  if (DV_DEBUG) console.warn(...args);
+}
+function dvError(...args) {
+  console.error(...args);
+}
 
 /********************************************************************
- * Tiny logger
+ * Constants
  ********************************************************************/
-function log(...args) {
-  // comment out if you want silence
-  console.log(LOG_PREFIX, ...args);
-}
+const IFRAME_GO_TO_PROFILE = "Back to chat center";
+const DELPHI_IFRAME_SELECTOR = "#delphi-frame";
+const IFRAME_WAIT_TIMEOUT_MS = 15000;
+const LOG_PREFIX = "[delphi-domrules]";
 
 /********************************************************************
  * Utilities
@@ -42,54 +72,40 @@ function waitForIframe(selector, timeoutMs = IFRAME_WAIT_TIMEOUT_MS) {
 function safeGetIframeDoc(iframe) {
   try {
     return iframe?.contentDocument || iframe?.contentWindow?.document || null;
-  } catch (e) {
-    // Cross-origin or not ready
+  } catch {
     return null;
   }
 }
 
 /********************************************************************
- * DOM RULES
- * Keep the approach simple: rules are idempotent functions(doc) -> boolean
+ * DOM RULES ENGINE
  ********************************************************************/
 const domRules = [];
 
-/**
- * Register a DOM rule. It will be applied repeatedly via observers.
- */
 function addDomRule(name, fn) {
   domRules.push({ name, fn });
 }
 
-/**
- * Run all rules against a document.
- */
 function applyDomRules(doc) {
   if (!doc) return;
 
   for (const rule of domRules) {
     try {
       const changed = !!rule.fn(doc);
-      if (changed) log(`rule applied: ${rule.name}`);
+      if (changed) dvLog(LOG_PREFIX, "rule applied:", rule.name);
     } catch (e) {
-      console.warn(LOG_PREFIX, `rule error: ${rule.name}`, e);
+      dvWarn(LOG_PREFIX, "rule error:", rule.name, e);
     }
   }
 }
 
 /********************************************************************
- * RULE: Profile name "First Last" -> "First"
- *
- * Stable targeting (no Tailwind classes, no Radix ids):
- * - Detect profile context via: img[alt^="Profile image for"]
- * - Then find the closest reasonable container and the first <h1> within it.
- * - Replace textContent with the first token only.
+ * RULE: Profile name "First Last" → "First"
  ********************************************************************/
 addDomRule("profile-name-first-word-only", (doc) => {
   const profileImg = doc.querySelector('img[alt^="Profile image for"]');
   if (!profileImg) return false;
 
-  // Prefer a nearby structural container rather than classes.
   const scope =
     profileImg.closest("section") ||
     profileImg.closest("main") ||
@@ -104,7 +120,6 @@ addDomRule("profile-name-first-word-only", (doc) => {
   const original = (h1.textContent || "").trim();
   if (!original) return false;
 
-  // Only change if it looks like "First Last" (at least two tokens)
   const tokens = original.split(/\s+/).filter(Boolean);
   if (tokens.length < 2) return false;
 
@@ -116,27 +131,23 @@ addDomRule("profile-name-first-word-only", (doc) => {
 });
 
 /********************************************************************
- * Attach observers inside the iframe so rules keep applying
- * across SPA navigations / re-renders.
+ * Install observers inside iframe
  ********************************************************************/
 function installIframeDomRuleEngine(iframe) {
   const doc = safeGetIframeDoc(iframe);
   if (!doc || !doc.documentElement) {
-    log("iframe document not ready yet");
+    dvLog(LOG_PREFIX, "iframe document not ready yet");
     return;
   }
 
-  // Run once immediately
   applyDomRules(doc);
 
-  // Avoid double-install
   if (doc.__delphiDomRulesInstalled) {
-    log("dom rules already installed in iframe");
+    dvLog(LOG_PREFIX, "dom rules already installed");
     return;
   }
   doc.__delphiDomRulesInstalled = true;
 
-  // Mutation observer (throttled)
   let scheduled = false;
   const scheduleApply = () => {
     if (scheduled) return;
@@ -150,30 +161,28 @@ function installIframeDomRuleEngine(iframe) {
   const obs = new MutationObserver(scheduleApply);
   obs.observe(doc.documentElement, { childList: true, subtree: true });
 
-  // Also re-run on load (some apps replace the whole tree)
   iframe.addEventListener("load", () => {
     const nextDoc = safeGetIframeDoc(iframe);
     if (nextDoc) applyDomRules(nextDoc);
   });
 
-  log("dom rules engine installed in iframe");
+  dvLog(LOG_PREFIX, "dom rules engine installed in iframe");
 }
 
 /********************************************************************
  * Bootstrap
  ********************************************************************/
 document.addEventListener("DOMContentLoaded", async () => {
-  log("DOMContentLoaded");
+  dvLog(LOG_PREFIX, "DOMContentLoaded");
 
   try {
     const iframe = await waitForIframe(DELPHI_IFRAME_SELECTOR);
-    log("iframe found:", iframe);
+    dvLog(LOG_PREFIX, "iframe found", iframe);
 
-    // Try now, and again shortly after (covers hydration timing)
     installIframeDomRuleEngine(iframe);
     setTimeout(() => installIframeDomRuleEngine(iframe), 250);
     setTimeout(() => installIframeDomRuleEngine(iframe), 1000);
   } catch (e) {
-    console.warn(LOG_PREFIX, e);
+    dvError(LOG_PREFIX, e);
   }
 });
