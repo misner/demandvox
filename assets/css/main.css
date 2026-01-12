@@ -336,6 +336,7 @@ body {
 
   /* Sidebar becomes off-canvas and wider */
   .sidebar {
+    position: fixed;
     width: 220px;
     align-items: stretch;
     padding-inline: 5px;
