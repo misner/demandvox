@@ -77,6 +77,76 @@ function safeGetIframeDoc(iframe) {
   }
 }
 
+function isElementVisible(el) {
+  if (!el) return false;
+
+  // Fast checks first
+  const style = el.ownerDocument?.defaultView?.getComputedStyle(el);
+  if (!style) return false;
+
+  if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0") {
+    return false;
+  }
+
+  // If it has no layout boxes, treat as not visible
+  const rect = el.getBoundingClientRect?.();
+  if (!rect || (rect.width === 0 && rect.height === 0)) return false;
+
+  return true;
+}
+
+/**
+ * Returns the first visible match for selector, or null.
+ * We prefer visible elements because Delphi is a SPA and keeps old screens mounted.
+ */
+function queryVisible(doc, selector) {
+  const nodes = Array.from(doc.querySelectorAll(selector));
+  for (const node of nodes) {
+    if (isElementVisible(node)) return node;
+  }
+  return null;
+}
+
+unction getDelphiMode(doc) {
+  if (!doc) return "unknown_mode";
+
+  // 1) Call mode
+  if (queryVisible(doc, ".delphi-call-container")) return "call_mode";
+
+  // 2) Chat mode
+  if (
+    queryVisible(doc, ".delphi-chat-conversation") ||
+    queryVisible(doc, "[data-sentry-component='Talk']") ||
+    queryVisible(doc, ".delphi-talk-container")
+  ) {
+    return "chat_mode";
+  }
+
+  // 3) Overview / Profile mode (best effort)
+  if (queryVisible(doc, ".delphi-profile-container")) return "overview_mode";
+
+  // Fallback: overview often has a profile image for the clone
+  if (doc.querySelector('img[alt^="Profile image for"]')) return "overview_mode";
+
+  return "unknown_mode";
+}
+
+/**
+ * "First Last" => "First"
+ * Returns null if it can't/shouldn't transform.
+ */
+function extractFirstName(fullName) {
+  const original = (fullName || "").trim();
+  if (!original) return null;
+
+  const tokens = original.split(/\s+/).filter(Boolean);
+  if (tokens.length < 2) return null;
+
+  return tokens[0];
+}
+
+
+
 /********************************************************************
  * DOM RULES ENGINE
  ********************************************************************/
@@ -99,10 +169,49 @@ function applyDomRules(doc) {
   }
 }
 
-/********************************************************************
- * RULE: Profile name "First Last" → "First"
- ********************************************************************/
+
 addDomRule("profile-name-first-word-only", (doc) => {
+  const mode = getDelphiMode(doc);
+
+  // Helper: set element text to first name (if needed)
+  const setFirstName = (el) => {
+    if (!el) return false;
+
+    const first = extractFirstName(el.textContent);
+    if (!first) return false;
+
+    if (el.textContent.trim() === first) return false;
+
+    el.textContent = first;
+    return true;
+  };
+
+  // ---------------------------
+  // Mode: CHAT
+  // ---------------------------
+  if (mode === "chat_mode") {
+    const h1 = queryVisible(doc, "h1.delphi-talk-title-text");
+    return setFirstName(h1);
+  }
+
+  // ---------------------------
+  // Mode: CALL  
+  // ---------------------------
+  if (mode === "call_mode") {
+    let changed = false;
+
+    const headerTitle = queryVisible(doc, "h1.delphi-call-header-title");
+    changed = setFirstName(headerTitle) || changed;
+
+    const centerTitle = queryVisible(doc, "h2.delphi-call-clone-indicator-title");
+    changed = setFirstName(centerTitle) || changed;
+
+    return changed;
+  }
+
+  // ---------------------------
+  // Mode: OVERVIEW / PROFILE (and fallback)
+  // ---------------------------
   const profileImg = doc.querySelector('img[alt^="Profile image for"]');
   if (!profileImg) return false;
 
@@ -115,20 +224,9 @@ addDomRule("profile-name-first-word-only", (doc) => {
   if (!scope) return false;
 
   const h1 = scope.querySelector("h1");
-  if (!h1) return false;
-
-  const original = (h1.textContent || "").trim();
-  if (!original) return false;
-
-  const tokens = original.split(/\s+/).filter(Boolean);
-  if (tokens.length < 2) return false;
-
-  const firstName = tokens[0];
-  if (h1.textContent.trim() === firstName) return false;
-
-  h1.textContent = firstName;
-  return true;
+  return setFirstName(h1);
 });
+
 
 /********************************************************************
  * Install observers inside iframe
