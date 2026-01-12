@@ -190,9 +190,9 @@ function applyDomRules(doc) {
   }
 }
 
-
+//Edit agent name to only show first name
 addDomRule("profile-name-first-word-only", (doc) => {
-  const mode = getDelphiMode(doc);
+  const mode = doc.__delphiMode || getDelphiMode(doc);
 
   // Helper: set element text to first name (if needed)
   const setFirstName = (el) => {
