@@ -166,6 +166,69 @@ function updateAndLogDelphiMode(doc) {
   return nextMode;
 }
 
+function ruleForceText({ name, selector, getText, preferVisible = true }) {
+  return {
+    name,
+    apply(doc) {
+      const el = preferVisible && typeof queryVisible === "function"
+        ? queryVisible(doc, selector)
+        : doc.querySelector(selector);
+
+      if (!el) return false;
+
+      const desired = String(getText());
+      const current = (el.textContent || "").trim();
+
+      if (current !== desired) {
+        el.textContent = desired;
+        dvLog(LOG_PREFIX, `[delphi] ${name}: text updated`);
+        return true;
+      }
+      return false;
+    },
+  };
+}
+
+function ruleHideButKeepLayout({ name, selector, preferVisible = true }) {
+  return {
+    name,
+    apply(doc) {
+      const el = preferVisible && typeof queryVisible === "function"
+        ? queryVisible(doc, selector)
+        : doc.querySelector(selector);
+
+      if (!el) return false;
+
+      if (el.style.visibility !== "hidden") {
+        el.style.visibility = "hidden";
+        dvLog(LOG_PREFIX, `[delphi] ${name}: hidden (layout preserved)`);
+        return true;
+      }
+      return false;
+    },
+  };
+}
+
+function ruleRemoveElement({ name, selector, preferVisible = true }) {
+  return {
+    name,
+    apply(doc) {
+      const el = preferVisible && typeof queryVisible === "function"
+        ? queryVisible(doc, selector)
+        : doc.querySelector(selector);
+
+      if (!el) return false;
+
+      // Idempotency guard in case the node is re-mounted quickly
+      if (el.__dvRemoved) return false;
+      el.__dvRemoved = true;
+
+      el.remove();
+      dvLog(LOG_PREFIX, `[delphi] ${name}: element removed from DOM`);
+      return true;
+    },
+  };
+}
 
 
 /********************************************************************
@@ -175,6 +238,10 @@ const domRules = [];
 
 function addDomRule(name, fn) {
   domRules.push({ name, fn });
+}
+
+function addBuiltRule(ruleObj) {
+  addDomRule(ruleObj.name, (doc) => ruleObj.apply(doc));
 }
 
 function applyDomRules(doc) {
@@ -189,6 +256,10 @@ function applyDomRules(doc) {
     }
   }
 }
+
+/********************************************************************
+ * VISIBILITY AND LAYOUT AJDUSTEMENTS 
+ ********************************************************************/
 
 //Edit agent name to only show first name
 addDomRule("profile-name-first-word-only", (doc) => {
@@ -248,6 +319,35 @@ addDomRule("profile-name-first-word-only", (doc) => {
   return setFirstName(h1);
 });
 
+//Overview/Profile: hide the Delphi logo nav link
+addBuiltRule(
+  ruleHideButKeepLayout({
+    name: "overview-hide-delphi-nav-link",
+    // This matches the <a role="navigation" aria-label="Delphi" ... href="/overview">
+    selector: "a[role='navigation'][aria-label='Delphi'][href='/overview']",
+    preferVisible: true,
+  })
+);
+
+//Chat mode: hide the Delphi header logo button
+addDomRule("chat-hide-delphi-header-logo-button", (doc) => {
+  const mode = doc.__delphiMode || getDelphiMode(doc);
+  if (mode !== "chat_mode") return false;
+
+  // There can be multiple (desktop + mobile). Hide whichever is visible.
+  let changed = false;
+  const buttons = Array.from(doc.querySelectorAll("button.delphi-header-logo"));
+  for (const btn of buttons) {
+    if (!isElementVisible(btn)) continue;
+    if (btn.style.visibility === "hidden") continue;
+
+    btn.style.visibility = "hidden";
+    dvLog(LOG_PREFIX, "[delphi] chat-hide-delphi-header-logo-button: hidden (layout preserved)");
+    changed = true;
+  }
+  return changed;
+});
+
 
 /********************************************************************
  * Install observers inside iframe
@@ -259,9 +359,8 @@ function installIframeDomRuleEngine(iframe) {
     return;
   }
 
+  updateAndLogDelphiMode(doc);
   applyDomRules(doc);
-
-  updateAndLogDelphiMode(doc);//log Delphi mode
 
   if (doc.__delphiDomRulesInstalled) {
     dvLog(LOG_PREFIX, "dom rules already installed");
@@ -287,7 +386,7 @@ function installIframeDomRuleEngine(iframe) {
     const nextDoc = safeGetIframeDoc(iframe);
     if (!nextDoc) return;
 
-    updateAndLogDelphiMode(nextDoc);//log updated delphi mode
+    updateAndLogDelphiMode(nextDoc);
     applyDomRules(nextDoc);
   });
 
