@@ -417,6 +417,23 @@ addDomRule("chat-hide-delphi-header-logo-button", (doc) => {
 // Call mode (desktop): replace Delphi logo with "Back to chat center"
 addBuiltRule(ruleCallHeaderBackToChatLink());
 
+// Call mode: hide avatar picture + name block in delphi nav
+addDomRule("call-hide-header-profile-block", (doc) => {
+  const mode = doc.__delphiMode || getDelphiMode(doc);
+  if (mode !== "call_mode") return false;
+
+  const el = queryVisible(doc, ".delphi-call-header-link");
+  if (!el) return false;
+
+  if (el.style.visibility !== "hidden") {
+    el.style.visibility = "hidden";
+    dvLog(LOG_PREFIX, "[delphi] call-hide-header-profile-block: hidden");
+    return true;
+  }
+
+  return false;
+});
+
 
 /********************************************************************
  * Install observers inside iframe
