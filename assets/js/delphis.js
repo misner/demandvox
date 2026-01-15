@@ -230,6 +230,70 @@ function ruleRemoveElement({ name, selector, preferVisible = true }) {
   };
 }
 
+/**
+ * ---------------------------------------------------------------
+ * Call header (DESKTOP ONLY):
+ * Replace Delphi logo with "Back to chat"
+ *
+ * Mobile behavior:
+ * - No change (Delphi logo area remains hidden)
+ *
+ * Desktop behavior:
+ * - Chevron remains visible
+ * - Delphi logo is replaced with a text CTA
+ * ---------------------------------------------------------------
+ */
+function ruleCallHeaderBackToChatLink() {
+  // Desktop call header logo link (Delphi)
+  const selector = "header.delphi-call-header a[aria-label='Delphi']";
+
+  return {
+    name: "call-header-back-to-chat-link",
+
+    apply(doc) {
+      // Only run in call mode
+      const mode = doc.__delphiMode || getDelphiMode(doc);
+      if (mode !== "call_mode") return false;
+
+      // Prefer visible because Delphi keeps old screens mounted
+      const link = queryVisible(doc, selector) || doc.querySelector(selector);
+      if (!link) return false;
+
+      // idempotency guard
+      if (link.__dvBackToChatApplied) return false;
+      link.__dvBackToChatApplied = true;
+
+      // IMPORTANT: you said you want it to go to profile/overview
+      // If your correct destination is /overview, keep this:
+      link.setAttribute("href", "/overview");
+
+      // Replace content with text CTA
+      link.textContent = IFRAME_GO_TO_PROFILE;
+
+      // Reset classes then apply desired styling (desktop only)
+      link.className = "";
+      link.classList.add("text-sand-11", "hidden", "text-sm", "font-medium", "md:block");
+
+      // Ensure link behaves nicely as text
+      link.style.whiteSpace = "nowrap";
+      link.style.display = "inline-flex";
+      link.style.alignItems = "center";
+
+      link.setAttribute("aria-label", "Back to chat center");
+
+      // Hide the vertical divider next to the logo (if present)
+      const divider = link.closest("span")?.nextElementSibling;
+      if (divider && divider.getAttribute("role") === "presentation") {
+        divider.style.visibility = "hidden";
+      }
+
+      dvLog(LOG_PREFIX, `[delphi] call-header-back-to-chat-link: replaced logo with CTA`);
+      return true;
+    },
+  };
+}
+
+
 
 /********************************************************************
  * DOM RULES ENGINE
@@ -319,15 +383,17 @@ addDomRule("profile-name-first-word-only", (doc) => {
   return setFirstName(h1);
 });
 
-//Overview/Profile: hide the Delphi logo nav link
-addBuiltRule(
-  ruleHideButKeepLayout({
-    name: "overview-hide-delphi-nav-link",
-    // This matches the <a role="navigation" aria-label="Delphi" ... href="/overview">
+// Overview/Profile: hide the Delphi logo nav link (ONLY in overview mode)
+addDomRule("overview-hide-delphi-nav-link", (doc) => {
+  const mode = doc.__delphiMode || getDelphiMode(doc);
+  if (mode !== "overview_mode") return false;
+
+  return ruleHideButKeepLayout({
+    name: "overview-hide-delphi-nav-link-inner",
     selector: "a[role='navigation'][aria-label='Delphi'][href='/overview']",
     preferVisible: true,
-  })
-);
+  }).apply(doc);
+});
 
 //Chat mode: hide the Delphi header logo button
 addDomRule("chat-hide-delphi-header-logo-button", (doc) => {
@@ -347,6 +413,9 @@ addDomRule("chat-hide-delphi-header-logo-button", (doc) => {
   }
   return changed;
 });
+
+// Call mode (desktop): replace Delphi logo with "Back to chat center"
+addBuiltRule(ruleCallHeaderBackToChatLink());
 
 
 /********************************************************************
