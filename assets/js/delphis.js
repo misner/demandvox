@@ -395,24 +395,58 @@ addDomRule("overview-hide-delphi-nav-link", (doc) => {
   }).apply(doc);
 });
 
-//Chat mode: hide the Delphi header logo button
-addDomRule("chat-hide-delphi-header-logo-button", (doc) => {
+//Chat mode: nav bar logo+chat history icons
+addDomRule("chat-header-logo-loggedin-variant", (doc) => {
   const mode = doc.__delphiMode || getDelphiMode(doc);
   if (mode !== "chat_mode") return false;
 
-  // There can be multiple (desktop + mobile). Hide whichever is visible.
-  let changed = false;
-  const buttons = Array.from(doc.querySelectorAll("button.delphi-header-logo"));
-  for (const btn of buttons) {
-    if (!isElementVisible(btn)) continue;
-    if (btn.style.visibility === "hidden") continue;
+  // The button that contains BOTH:
+  // - Delphi logo SVG (left)
+  // - Chat History icon + text (right) when logged-in
+  const btn = queryVisible(doc, "header.delphi-talk-header button.delphi-header-logo");
+  if (!btn) return false;
 
-    btn.style.visibility = "hidden";
-    dvLog(LOG_PREFIX, "[delphi] chat-hide-delphi-header-logo-button: hidden (layout preserved)");
-    changed = true;
+  // "Logged-in" detection:
+  // When logged in, this container exists inside the same button:
+  // true if EITHER:
+  // - the Chat History container exists (structure-based), OR
+  // - any descendant contains the "Chat History" label (text-based)
+  const hasChatHistoryStructure =
+    !!btn.querySelector("div.flex.items-center.gap-2") ||
+    !!btn.querySelector("span.text-sand-11");
+  
+  const hasChatHistoryCopy = Array.from(btn.querySelectorAll("*")).some((node) => {
+    const t = (node.textContent || "").trim().toLowerCase();
+    return t === "chat history";
+  });
+  
+  // If either heuristic matches, consider user logged-in
+  const isLoggedIn = hasChatHistoryStructure || hasChatHistoryCopy;
+
+  // Case A: logged-in -> remove ONLY the Delphi logo svg (display:none)
+  if (isLoggedIn) {
+    const delphiSvg = btn.querySelector(":scope > svg");
+    if (!delphiSvg) return false;
+
+    if (delphiSvg.style.display !== "none") {
+      delphiSvg.style.display = "none";
+      dvLog(LOG_PREFIX, "[delphi] chat: logged-in, hid Delphi SVG only");
+      return true;
+    }
+    return false;
   }
-  return changed;
+
+  // Case B: logged-out -> keep existing behavior: hide the whole button but preserve layout
+  // (this matches your current approach)
+  if (btn.style.visibility !== "hidden") {
+    btn.style.visibility = "hidden";
+    dvLog(LOG_PREFIX, "[delphi] chat: logged-out, hid header logo button (layout preserved)");
+    return true;
+  }
+
+  return false;
 });
+
 
 // Call mode (desktop): replace Delphi logo with "Back to chat center"
 addBuiltRule(ruleCallHeaderBackToChatLink());
