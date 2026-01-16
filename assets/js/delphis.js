@@ -450,9 +450,48 @@ addDomRule("chat-header-logo-loggedin", (doc) => {
   return false;
 });
 
+// Chat mode (logged-in): when Chat History drawer/dialog is open,
+// hide Delphi brand icon + Delphi wordmark inside the drawer header.
+function ruleChatHistoryDialogHideDelphiBrandSvgs() {
+  return {
+    name: "chat-history-dialog-hide-delphi-brand-svgs",
 
-// Call mode (desktop): replace Delphi logo with "Back to chat center"
-addBuiltRule(ruleCallHeaderBackToChatLink());
+    apply(doc) {
+      const mode = doc.__delphiMode || getDelphiMode(doc);
+      if (mode !== "chat_mode") return false;
+
+      // Only when logged in
+      if (!isDelphiLoggedIn(doc)) return false;
+
+      // Only when the drawer/dialog is actually open
+      const dialog = doc.querySelector("div[role='dialog'][data-state='open']");
+      if (!dialog) return false;
+
+      // Inside the dialog header, target the Delphi nav link
+      const delphiNav = dialog.querySelector(
+        "header a[role='navigation'][aria-label='Delphi']"
+      );
+      if (!delphiNav) return false;
+
+      // Idempotency guard: do not re-apply on every DOM tick
+      if (delphiNav.__dvHideBrandSvgsApplied) return false;
+      delphiNav.__dvHideBrandSvgsApplied = true;
+
+      // Hide BOTH SVGs (logo mark + wordmark), keep anchor in DOM
+      const svgs = delphiNav.querySelectorAll("svg");
+      if (!svgs || svgs.length === 0) return false;
+
+      svgs.forEach((svg) => {
+        svg.style.display = "none";
+      });
+
+      // Extra safety: remove the visual gap that was between the two SVGs
+      delphiNav.style.gap = "0";
+
+      return true;
+    },
+  };
+}
 
 // Call mode: hide avatar picture + name block in delphi nav
 addDomRule("call-hide-header-profile-block", (doc) => {
@@ -471,6 +510,9 @@ addDomRule("call-hide-header-profile-block", (doc) => {
   return false;
 });
 
+// Apply built rules
+addBuiltRule(ruleCallHeaderBackToChatLink()); //Call mode (desktop): replace Delphi logo with "Back to chat center"
+addBuiltRule(ruleChatHistoryDialogHideDelphiBrandSvgs()); //hide Delphi brand icon + Delphi wordmark inside the 'chat history' drawer
 
 /********************************************************************
  * Install observers inside iframe
