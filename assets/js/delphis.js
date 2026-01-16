@@ -1,5 +1,5 @@
 /********************************************************************
- * Environment + logging
+ * Environment + logging 
  * ------------------------------------------------------------------
  * Enforce verbose logs on preview instances (*.pages.dev)
  * to debug embed behavior, but silence logs on production domains.
