@@ -483,6 +483,14 @@ function installIframeDomRuleEngine(iframe) {
   }
 
   updateAndLogDelphiMode(doc);
+
+  // Log auth state only when it changes (prevents console spam)
+  const loggedInNow = isDelphiLoggedIn(doc);
+  if (doc.__dvLoggedIn !== loggedInNow) {
+    doc.__dvLoggedIn = loggedInNow;
+    if (DV_DEBUG) dvLog(LOG_PREFIX, "logged in:", loggedInNow);
+  }
+
   applyDomRules(doc);
 
   if (doc.__delphiDomRulesInstalled) {
@@ -497,7 +505,16 @@ function installIframeDomRuleEngine(iframe) {
     scheduled = true;
     (doc.defaultView || window).requestAnimationFrame(() => {
       scheduled = false;
+      
       updateAndLogDelphiMode(doc);
+
+      // Log auth state only when it changes (prevents console spam)
+      const loggedInNow = isDelphiLoggedIn(doc);
+      if (doc.__dvLoggedIn !== loggedInNow) {
+        doc.__dvLoggedIn = loggedInNow;
+        if (DV_DEBUG) dvLog(LOG_PREFIX, "logged in:", loggedInNow);
+      }
+
       applyDomRules(doc);
     });
   };
