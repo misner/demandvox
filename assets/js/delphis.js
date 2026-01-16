@@ -396,7 +396,7 @@ addDomRule("overview-hide-delphi-nav-link", (doc) => {
 });
 
 //Chat mode: nav bar logo+chat history icons
-addDomRule("chat-header-logo-loggedin-variant", (doc) => {
+addDomRule("chat-header-logo-loggedin", (doc) => {
   const mode = doc.__delphiMode || getDelphiMode(doc);
   if (mode !== "chat_mode") return false;
 
