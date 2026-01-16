@@ -132,6 +132,23 @@ function getDelphiMode(doc) {
 }
 
 /**
+ * Detect whether a user is logged in to Delphi.
+ *
+ * Reliable signal: Presence of the auth menu trigger button at the top right across all modes
+ */
+function isDelphiLoggedIn(doc) {
+  if (!doc) return false;
+
+  // Use visible-first strategy to avoid SPA leftovers
+  const btn =
+    queryVisible(doc, "button.delphi-auth-menu-trigger") ||
+    doc.querySelector("button.delphi-auth-menu-trigger");
+
+  return !!btn;
+}
+
+
+/**
  * "First Last" => "First"
  * Returns null if it can't/shouldn't transform.
  */
@@ -406,22 +423,8 @@ addDomRule("chat-header-logo-loggedin", (doc) => {
   const btn = queryVisible(doc, "header.delphi-talk-header button.delphi-header-logo");
   if (!btn) return false;
 
-  // "Logged-in" detection:
-  // When logged in, this container exists inside the same button:
-  // true if EITHER:
-  // - the Chat History container exists (structure-based), OR
-  // - any descendant contains the "Chat History" label (text-based)
-  const hasChatHistoryStructure =
-    !!btn.querySelector("div.flex.items-center.gap-2") ||
-    !!btn.querySelector("span.text-sand-11");
-  
-  const hasChatHistoryCopy = Array.from(btn.querySelectorAll("*")).some((node) => {
-    const t = (node.textContent || "").trim().toLowerCase();
-    return t === "chat history";
-  });
-  
-  // If either heuristic matches, consider user logged-in
-  const isLoggedIn = hasChatHistoryStructure || hasChatHistoryCopy;
+  // Logged-in detection
+  const isLoggedIn = isDelphiLoggedIn(doc);
 
   // Case A: logged-in -> remove ONLY the Delphi logo svg (display:none)
   if (isLoggedIn) {
