@@ -510,9 +510,71 @@ addDomRule("call-hide-header-profile-block", (doc) => {
   return false;
 });
 
+// Any mode: hide any open dialog whose text includes Delphi "Terms of Service"
+function ruleHideTermsDialogByCopy() {
+  return {
+    name: "hide-terms-dialog-by-copy",
+
+    apply(doc) {
+      const dialogs = Array.from(
+        doc.querySelectorAll("[role='dialog'][data-state='open']")
+      );
+
+      const target = dialogs.find((d) => {
+        const t = (d.textContent || "").trim().toLowerCase();
+        return t.includes("terms of service");
+      });
+
+      if (!target) return false;
+
+      // Idempotency guard
+      if (target.__dvTermsHidden) return false;
+      target.__dvTermsHidden = true;
+
+      // 1) Hide the dialog itself
+      target.style.display = "none";
+      target.style.pointerEvents = "none";
+
+      // 2) Also neutralize common "overlay/backdrop" blockers in the same portal container
+      // Radix often mounts overlay + content together under a shared parent/portal.
+      const portalRoot = target.parentElement || doc.body;
+
+      const possibleBlockers = Array.from(portalRoot.children).filter((el) => el !== target);
+
+      for (const el of possibleBlockers) {
+        // Heuristic: overlays are usually fixed and meant to intercept clicks
+        const cs = doc.defaultView?.getComputedStyle(el);
+        const isFixed = cs?.position === "fixed";
+        const hasOpenState = el.getAttribute("data-state") === "open";
+        const blocksClicks = cs?.pointerEvents !== "none";
+
+        if (isFixed && (hasOpenState || blocksClicks)) {
+          el.style.display = "none";
+          el.style.pointerEvents = "none";
+          el.__dvTermsOverlayHidden = true;
+        }
+      }
+
+      // 3) Undo common scroll-lock that can be left behind by dialog libs
+      if (doc.documentElement && doc.documentElement.style.overflow === "hidden") {
+        doc.documentElement.style.overflow = "";
+      }
+      if (doc.body && doc.body.style.overflow === "hidden") {
+        doc.body.style.overflow = "";
+      }
+
+      return true;
+    },
+  };
+}
+
+
+
 // Apply built rules
 addBuiltRule(ruleCallHeaderBackToChatLink()); //Call mode (desktop): replace Delphi logo with "Back to chat center"
 addBuiltRule(ruleChatHistoryDialogHideDelphiBrandSvgs()); //hide Delphi brand icon + Delphi wordmark inside the 'chat history' drawer
+addBuiltRule(ruleHideTermsDialogByCopy()); //hide any open dialog whose text includes Delphi "Terms of Service"
+
 
 /********************************************************************
  * Install observers inside iframe
