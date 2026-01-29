@@ -248,6 +248,20 @@ function ruleRemoveElement({ name, selector, preferVisible = true }) {
 }
 
 /**
+ * Safely hide an element without removing it from the DOM.
+ * Idempotent, low-risk for third-party SPAs.
+ */
+function hideElementSafely(el) {
+  if (!el || el.__dvHidden) return false;
+
+  el.style.display = "none";
+  el.style.pointerEvents = "none";
+  el.__dvHidden = true;
+  return true;
+}
+
+
+/**
  * Hide  visible Delphi dialog overlay (backdrop blocker) when needed.
  * Safe to call repeatedly. Idempotent, mode-agnostic, safe across re-renders
  */
@@ -263,13 +277,7 @@ function hideOpenDelphiDialogOverlay(doc) {
   let changed = false;
 
   for (const overlay of overlays) {
-    if (overlay.__dvHidden) continue;
-
-    overlay.style.display = "none";
-    overlay.style.pointerEvents = "none";
-    overlay.__dvHidden = true;
-
-    changed = true;
+    changed = hideElementSafely(overlay) || changed;
   }
 
   if (changed && DV_DEBUG) {
@@ -584,10 +592,29 @@ function ruleHideTermsDialogByCopy() {
   };
 }
 
+//Hide feedback aciton button within Actions dialog
+addDomRule("dialog-hide-feedback-menu-item", (doc) => {
+  // Only act when a dialog is actually open
+  const openDialog = doc.querySelector("div[role='dialog'][data-state='open']");
+  if (!openDialog) return false;
+
+  // Target the exact button
+  const feedbackBtn = openDialog.querySelector("button[data-menu-item='feedback']");
+  return hideElementSafely(feedbackBtn);  
+
+  if (changed && DV_DEBUG) {
+    dvLog(LOG_PREFIX, "[delphi] hid action center feedback button");
+  }
+
+  return changed;
+});
+
+
 // Apply built rules
 addBuiltRule(ruleCallHeaderBackToChatLink()); //Call mode (desktop): replace Delphi logo with "Back to chat center"
 addBuiltRule(ruleChatHistoryDialogHideDelphiBrandSvgs()); //hide Delphi brand icon + Delphi wordmark inside the 'chat history' drawer
 addBuiltRule(ruleHideTermsDialogByCopy()); //hide any open dialog whose text includes Delphi "Terms of Service"
+
 
 
 /********************************************************************
