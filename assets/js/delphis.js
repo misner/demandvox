@@ -248,6 +248,39 @@ function ruleRemoveElement({ name, selector, preferVisible = true }) {
 }
 
 /**
+ * Hide  visible Delphi dialog overlay (backdrop blocker) when needed.
+ * Safe to call repeatedly. Idempotent, mode-agnostic, safe across re-renders
+ */
+function hideOpenDelphiDialogOverlay(doc) {
+  if (!doc) return false;
+
+  const overlays = Array.from(
+    doc.querySelectorAll(".delphi-dialog-overlay[data-state='open']")
+  );
+
+  if (!overlays.length) return false;
+
+  let changed = false;
+
+  for (const overlay of overlays) {
+    if (overlay.__dvHidden) continue;
+
+    overlay.style.display = "none";
+    overlay.style.pointerEvents = "none";
+    overlay.__dvHidden = true;
+
+    changed = true;
+  }
+
+  if (changed && DV_DEBUG) {
+    dvLog(LOG_PREFIX, "[delphi] dialog overlay hidden");
+  }
+
+  return changed;
+}
+
+
+/**
  * ---------------------------------------------------------------
  * Call header (DESKTOP ONLY):
  * Replace Delphi logo with "Back to chat"
@@ -535,40 +568,21 @@ function ruleHideTermsDialogByCopy() {
       target.style.display = "none";
       target.style.pointerEvents = "none";
 
-      // 2) Also neutralize common "overlay/backdrop" blockers in the same portal container
-      // Delphi often mounts overlay + content together under a shared parent/portal.
-      const portalRoot = target.parentElement || doc.body;
+      // 2) Hide the backdrop overlay (critical)
+      hideOpenDelphiDialogOverlay(doc);
 
-      const possibleBlockers = Array.from(portalRoot.children).filter((el) => el !== target);
-
-      for (const el of possibleBlockers) {
-        // Heuristic: overlays are usually fixed and meant to intercept clicks
-        const cs = doc.defaultView?.getComputedStyle(el);
-        const isFixed = cs?.position === "fixed";
-        const hasOpenState = el.getAttribute("data-state") === "open";
-        const blocksClicks = cs?.pointerEvents !== "none";
-
-        if (isFixed && (hasOpenState || blocksClicks)) {
-          el.style.display = "none";
-          el.style.pointerEvents = "none";
-          el.__dvTermsOverlayHidden = true;
-        }
-      }
-
-      // 3) Undo common scroll-lock that can be left behind by dialog libs
-      if (doc.documentElement && doc.documentElement.style.overflow === "hidden") {
+      // 3) Undo common scroll-lock left by dialog libs
+      if (doc.documentElement?.style.overflow === "hidden") {
         doc.documentElement.style.overflow = "";
       }
-      if (doc.body && doc.body.style.overflow === "hidden") {
+      if (doc.body?.style.overflow === "hidden") {
         doc.body.style.overflow = "";
       }
-
+      
       return true;
     },
   };
 }
-
-
 
 // Apply built rules
 addBuiltRule(ruleCallHeaderBackToChatLink()); //Call mode (desktop): replace Delphi logo with "Back to chat center"
