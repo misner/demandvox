@@ -592,29 +592,33 @@ function ruleHideTermsDialogByCopy() {
   };
 }
 
-//Hide feedback aciton button within Actions dialog
-addDomRule("dialog-hide-feedback-menu-item", (doc) => {
-  // Only act when a dialog is actually open
-  const openDialog = doc.querySelector("div[role='dialog'][data-state='open']");
-  if (!openDialog) return false;
+// Hide feedback button within Actions
+function ruleHideFeedbackMenuItem() {
+  return {
+    name: "dialog-hide-feedback-menu-item",
 
-  // Target the exact button
-  const feedbackBtn = openDialog.querySelector("button[data-menu-item='feedback']");
-  return hideElementSafely(feedbackBtn);  
+    apply(doc) {
+      const openDialog = doc.querySelector("div[role='dialog'][data-state='open']");
+      if (!openDialog) return false;
 
-  if (changed && DV_DEBUG) {
-    dvLog(LOG_PREFIX, "[delphi] hid action center feedback button");
-  }
+      const feedbackBtn = openDialog.querySelector("button[data-menu-item='feedback']");
+      const changed = hideElementSafely(feedbackBtn);
 
-  return changed;
-});
+      if (changed && DV_DEBUG) {
+        dvLog(LOG_PREFIX, "[delphi] hid action center feedback button");
+      }
+
+      return changed;
+    },
+  };
+}
 
 
 // Apply built rules
 addBuiltRule(ruleCallHeaderBackToChatLink()); //Call mode (desktop): replace Delphi logo with "Back to chat center"
 addBuiltRule(ruleChatHistoryDialogHideDelphiBrandSvgs()); //hide Delphi brand icon + Delphi wordmark inside the 'chat history' drawer
 addBuiltRule(ruleHideTermsDialogByCopy()); //hide any open dialog whose text includes Delphi "Terms of Service"
-
+addBuiltRule(ruleHideFeedbackMenuItem()); // Hide feedback button within Actions
 
 
 /********************************************************************
