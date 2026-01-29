@@ -536,7 +536,7 @@ function ruleHideTermsDialogByCopy() {
       target.style.pointerEvents = "none";
 
       // 2) Also neutralize common "overlay/backdrop" blockers in the same portal container
-      // Radix often mounts overlay + content together under a shared parent/portal.
+      // Delphi often mounts overlay + content together under a shared parent/portal.
       const portalRoot = target.parentElement || doc.body;
 
       const possibleBlockers = Array.from(portalRoot.children).filter((el) => el !== target);
