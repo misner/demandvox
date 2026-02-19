@@ -1,140 +1,382 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <title>Demandvox | Where you go for your B2B service providers. </title>
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Main styles extracted into a separate file -->
-  <link rel="stylesheet" href="assets/css/main.css">
-  <style>
-    /* inline css */
-  </style>
+  <title>L’audit IA pour PME</title>
+  <meta name="description" content="Audit IA actionnable pour PME: diagnostic, plan d’exécution, ROI." />
+
+  <!-- CSS: keep separate for GitHub Pages -->
+  <link rel="stylesheet" href="main.css?v=1" />
 </head>
+
 <body>
-  <button class="mobile-menu-toggle" aria-label="Open navigation">
-    <span class="mobile-menu-lines"></span>
-  </button>
-  
-  <div class="layout">
-    <aside class="sidebar" aria-label="Primary navigation">      
-
-      <!-- Collapse button (mobile) -->
-      <div class="sidebar-header">
-        <a href="./" class="logo-mark" aria-label="Home">
-          <!-- <img src="./assets/img/demandvox-logo.png" alt="DemandVox" aria-label="DemandVox"> -->
-        </a>      
-        <button class="sidebar-close" aria-label="Collapse navigation">←</button>
-      </div>   
-      
-      <!-- Menu group vertically center on desktop -->
-      <nav class="sidebar-menu">
-        <a href="./find-vendors.html" class="nav-icon-button is-active" aria-label="Find vendors">
-          <span class="nav-icon">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path fill="currentColor" d="M11 4a7 7 0 0 1 5.42 11.37l3.6 3.6a1 1 0 0 1-1.42 1.42l-3.6-3.6A7 7 0 1 1 11 4zm0 2a5 5 0 1 0 0 10a5 5 0 0 0 0-10z" />
-            </svg>
-          </span>
-          <span class="nav-label">Find vendors</span>
+  <header class="site-header">
+    <div class="container">
+      <div class="header-inner">
+        <a class="brand" href="#top" aria-label="Accueil">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span>L’audit IA</span>
         </a>
 
-        <a href="./community.html" class="nav-icon-button" aria-label="Community">
-          <span class="nav-icon">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path fill="currentColor" d="M7 10a3 3 0 1 1 0-6a3 3 0 0 1 0 6zm10 0a3 3 0 1 1 0-6a3 3 0 0 1 0 6zM4 20a3 3 0 0 1 3-3h2a3 3 0 0 1 3 3v1H4zm10 0a3 3 0 0 1 3-3h3a3 3 0 0 1 3 3v1h-9z" />
-            </svg>
-          </span>
-          <span class="nav-label">Community</span>
-        </a>
+        <nav class="nav" aria-label="Navigation principale">
+          <a href="#benefits">Bénéfices</a>
+          <a href="#process">Méthode</a>
+          <a href="#proof">Preuves</a>
+          <a href="#pricing">Tarification</a>
+          <a href="#faq">FAQ</a>
+          <a class="btn btn-primary btn-small" href="#get-started">Prendre un diagnostic</a>
+        </nav>
 
-        <a href="./tools.html" class="nav-icon-button" aria-label="Tools">
-          <span class="nav-icon">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path fill="currentColor" d="M4 4h7v7H4zm9 0h7v7h-7zM4 13h7v7H4zm9 7v-7h7v7z" />
-            </svg>
-          </span>
-          <span class="nav-label">Tools</span>
-        </a>
+        <div class="header-actions" aria-label="Actions">
+          <a class="btn btn-secondary btn-small" href="#pricing">Voir le prix</a>
+          <a class="btn btn-primary btn-small" href="#get-started">Prendre un diagnostic</a>
+        </div>
 
-        <a href="./why.html" class="nav-icon-button" aria-label="About">
-          <span class="nav-icon">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path fill="currentColor" d="M12 2a10 10 0 1 0 10 10A10.011 10.011 0 0 0 12 2zm0 16a1.25 1.25 0 1 1 1.25-1.25A1.25 1.25 0 0 1 12 18zm1.8-6.9l-.9.64A1.38 1.38 0 0 0 12.5 13v.25a.5.5 0 0 1-1 0V13a2.37 2.37 0 0 1 1-2l.94-.68A1.38 1.38 0 0 0 13.5 8a1.5 1.5 0 1 0-3 0a.5.5 0 0 1-1 0a2.5 2.5 0 1 1 4.3 1.6z" />
-            </svg>
-          </span>
-          <span class="nav-label">Why us</span>
-        </a>
-      </nav>  
-      
-      <div class="sidebar-bottom">
-        <a href="./help.html" class="nav-icon-button" aria-label="Get help">
-          <span class="nav-icon">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path fill="currentColor" d="M4 4h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-5.5L9 21.5V16H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm4.5 6a1 1 0 1 0-1-1a1 1 0 0 0 1 1zm3.5 0a1 1 0 1 0-1-1a1 1 0 0 0 1 1zm3.5 0a1 1 0 1 0-1-1a1 1 0 0 0 1 1z" />
-            </svg>
-          </span>
-          <span class="nav-label">Get help</span>
-        </a>
+        <button class="menu-btn" type="button" aria-label="Ouvrir le menu" aria-expanded="false" id="menuBtn">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 6h16"></path>
+            <path d="M4 12h16"></path>
+            <path d="M4 18h16"></path>
+          </svg>
+        </button>
       </div>
-    </aside>
 
-    <main class="main">
-      <div class="main-inner">
-        <header class="top-banner">
-          <div class="banner-text-group">
-            <span class="banner-title">Find the right demand gen vendor</span>
-            <span class="banner-dot"></span>
-            <span class="banner-vendor-row">
-              trusted by high-impact demand-gen teams at
-              <span class="vendor-badge">A</span>
-              <span class="vendor-badge">B</span>
-              <span class="vendor-badge">C</span>
-              <span class="vendor-badge">D</span>
-              <span class="vendor-badge">E</span>
-            </span>
+      <nav class="mobile-nav" id="mobileNav" aria-label="Navigation mobile">
+        <a href="#benefits">Bénéfices</a>
+        <a href="#process">Méthode</a>
+        <a href="#proof">Preuves</a>
+        <a href="#pricing">Tarification</a>
+        <a href="#faq">FAQ</a>
+        <a class="btn btn-primary" href="#get-started" style="margin-top:10px;">Prendre un diagnostic</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <!-- HERO -->
+    <section class="hero" aria-label="Héros">
+      <div class="container">
+        <div class="hero-inner">
+          <div class="badge" style="margin-bottom:14px;">Audit IA pour PME, sans bullshit</div>
+          <h1>Gagnez <span class="accent">5 à 10 heures</span> par semaine dans votre activité, sans recruter.</h1>
+          <p>
+            Un audit IA pragmatique pour identifier les gains rapides, sécuriser les données, choisir les bons outils et livrer un plan d’exécution clair (avec ROI). Pas une présentation. Un plan.
+          </p>
+          <div class="cta-row" id="get-started">
+            <a class="btn btn-primary" href="#pricing">Prendre un diagnostic</a>
+            <a class="btn btn-secondary" href="#process">Voir la méthode</a>
           </div>
-          <div class="banner-vendor-row banner-free">
-            <span>100% free for Buyers</span>
-          </div>
-        </header>
+        </div>
+      </div>
+    </section>
 
-        <section class="page-canvas" aria-label="Blank workspace">
-          <div class="page-canvas-inner">
-            
-            <div> 
-              <script id="delphi-page-script">
+    <!-- PRESSURE / BENEFITS -->
+    <section class="section" id="benefits" aria-label="Bénéfices">
+      <div class="container">
+        <div class="section-head">
+          <h2>La pression opérationnelle augmente.</h2>
+          <p>Vous êtes tiré dans tous les sens. L’audit sert à choisir quoi automatiser, quoi standardiser, et quoi laisser humain. Objectif: récupérer du temps, sans dégrader la qualité.</p>
+        </div>
 
-                // Decide which ID to use based on hostname
-                const hostname = window.location.hostname;
-                const isPreview = hostname.endsWith('.pages.dev');
-            
-                const DELPHI_ID = isPreview
-                  ? 'c9d56170-c0dc-400e-9ffe-ff499afcf6d9'  // preview
-                  : '74a48d08-8808-4778-b367-a106b5a371e1'; // production    
-                
-                //Initialise the global delphi object
-                window.delphi = {...(window.delphi ?? {}) };
-                window.delphi.page = {
-                  config: DELPHI_ID,
-                  overrides: {
-                    landingPage: 'OVERVIEW',
-                  },
-                  container: {
-                    width: '100%',
-                    height: '100%',
-                    //height: '800px', 
-                  },
-                };
-              </script> 
-              <script id="delphi-page-bootstrap" src="https://embed.delphi.ai/loader.js"></script>
+        <div class="grid-3">
+          <article class="card">
+            <div class="card-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 8v4l3 3"></path><path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"></path>
+              </svg>
             </div>
-            
-          </div>
-        </section>
+            <h3>Délais de réponse</h3>
+            <p>Les demandes s’accumulent. Sans triage et automatisation, les délais explosent et la satisfaction baisse.</p>
+          </article>
 
+          <article class="card">
+            <div class="card-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 11h6"></path><path d="M9 15h6"></path><path d="M5 3h14v18H5z"></path>
+              </svg>
+            </div>
+            <h3>Charge administrative</h3>
+            <p>Emails, relances, comptes rendus, préparation. Ce n’est pas de la valeur, c’est du frottement.</p>
+          </article>
+
+          <article class="card">
+            <div class="card-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 3v18h18"></path><path d="m19 9-5 5-4-4-3 3"></path>
+              </svg>
+            </div>
+            <h3>Volume croissant</h3>
+            <p>Plus de volume sans process signifie plus d’erreurs. L’IA doit renforcer la qualité, pas la fragiliser.</p>
+          </article>
+        </div>
       </div>
-    </main>
-  </div>
-  <script src="assets/js/sidebar.js"></script>
-  <!-- <script src="assets/js/delphi.js"></script> -->
+    </section>
+
+    <!-- METHOD / PROCESS -->
+    <section class="section alt" id="process" aria-label="Méthode">
+      <div class="container section-inner">
+        <div class="section-head">
+          <span class="badge">Méthode</span>
+          <h2>L’audit IA appliqué à votre PME.</h2>
+          <p>Un processus court, cadré, orienté exécution: inventaire, priorisation, plan, et accompagnement optionnel.</p>
+        </div>
+
+        <div class="two-col">
+          <div class="card">
+            <h3 style="margin-top:0;">Étapes (2 semaines typiquement)</h3>
+            <ul class="list" style="margin-top:14px;">
+              <li class="li"><span class="dot good">1</span><span><strong>Cartographier</strong>: activités, irritants, données, outils, contraintes (RGPD, sécurité).</span></li>
+              <li class="li"><span class="dot good">2</span><span><strong>Prioriser</strong>: quick wins vs chantiers structurants, impact vs effort, risques.</span></li>
+              <li class="li"><span class="dot good">3</span><span><strong>Prototyper</strong>: 1 à 2 cas d’usage « preuve » (si pertinent) pour valider valeur et adoption.</span></li>
+              <li class="li"><span class="dot good">4</span><span><strong>Plan d’exécution</strong>: roadmap 30/60/90 jours, outils, intégrations, responsabilités, KPI.</span></li>
+            </ul>
+          </div>
+
+          <div class="card">
+            <h3 style="margin-top:0;">Ce que vous recevez</h3>
+            <ul class="list" style="margin-top:14px;">
+              <li class="li"><span class="dot good">✓</span><span>Liste priorisée des cas d’usage avec gains estimés</span></li>
+              <li class="li"><span class="dot good">✓</span><span>Recommandations d’outils (buy vs build) et architecture cible</span></li>
+              <li class="li"><span class="dot good">✓</span><span>Plan de déploiement 30/60/90 jours et KPI</span></li>
+              <li class="li"><span class="dot good">✓</span><span>Garde-fous conformité, sécurité et gouvernance</span></li>
+            </ul>
+            <div class="cta-row" style="justify-content:flex-start; margin-top:18px;">
+              <a class="btn btn-primary" href="#pricing">Prendre un diagnostic</a>
+              <a class="btn btn-secondary" href="#faq">Voir la FAQ</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-3" style="margin-top:18px;">
+          <article class="card">
+            <div class="card-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12a9 9 0 1 1-9-9"></path><path d="M22 3 12 13"></path>
+              </svg>
+            </div>
+            <h3>Rapidité</h3>
+            <p>Décisions en jours, pas en mois. Vous repartez avec un plan exécutable.</p>
+          </article>
+          <article class="card">
+            <div class="card-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2 2 7l10 5 10-5-10-5Z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path>
+              </svg>
+            </div>
+            <h3>Clarté</h3>
+            <p>Priorisation nette. Ce qui doit être fait maintenant, ensuite, ou jamais.</p>
+          </article>
+          <article class="card">
+            <div class="card-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 6 9 17l-5-5"></path>
+              </svg>
+            </div>
+            <h3>Sécurité</h3>
+            <p>RGPD et gouvernance inclus. Pas de bricolage qui met vos données en risque.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- PROOF / SUCCESS STORIES -->
+    <section class="section" id="proof" aria-label="Success stories">
+      <div class="container">
+        <div class="section-head">
+          <span class="badge">Preuves</span>
+          <h2>Success stories.</h2>
+          <p>Exemples indicatifs. À remplacer par vos vrais retours clients dès que vous en avez.</p>
+        </div>
+
+        <div class="grid-3">
+          <article class="card">
+            <h3>« 6h/semaine récupérées »</h3>
+            <p>Automatisation du triage + réponses assistées + templates. Moins d’allers-retours, meilleure qualité.</p>
+          </article>
+          <article class="card">
+            <h3>« Moins d’erreurs »</h3>
+            <p>Standardisation des process + checklists + extraction de données. Contrôle avant envoi.</p>
+          </article>
+          <article class="card">
+            <h3>« Meilleure conversion »</h3>
+            <p>Qualification plus rapide des demandes entrantes, offres plus cohérentes, réponses plus rapides.</p>
+          </article>
+        </div>
+
+        <div class="cta-row" style="margin-top:26px;">
+          <a class="btn btn-primary" href="#pricing">Prendre un diagnostic</a>
+          <a class="btn btn-secondary" href="#about">En savoir plus</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- PRICING -->
+    <section class="section alt" id="pricing" aria-label="Tarification">
+      <div class="container section-inner">
+        <div class="section-head">
+          <span class="badge">Tarification</span>
+          <h2>Tarification.</h2>
+          <p>Un prix fixe. Un livrable concret. Pas d’abonnement caché.</p>
+        </div>
+
+        <div class="two-col">
+          <div class="card">
+            <h3 style="margin-top:0;">Audit IA (forfait)</h3>
+            <div style="font-size:46px;font-weight:900;letter-spacing:-0.03em; margin:10px 0 8px;">990€ <span style="font-size:14px;font-weight:750;color:rgba(71,85,105,.85);">HT</span></div>
+            <ul class="list" style="margin-top:14px;">
+              <li class="li"><span class="dot good">✓</span><span>Analyse + plan d’action 30/60/90 jours</span></li>
+              <li class="li"><span class="dot good">✓</span><span>Cas d’usage priorisés + estimation ROI</span></li>
+              <li class="li"><span class="dot good">✓</span><span>Recommandations d’outils et intégrations</span></li>
+              <li class="li"><span class="dot good">✓</span><span>Revue de restitution (visio)</span></li>
+            </ul>
+            <div class="cta-row" style="justify-content:flex-start;">
+              <a class="btn btn-primary" href="#get-started">Prendre un diagnostic</a>
+              <a class="btn btn-secondary" href="#faq">Questions</a>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3 style="margin-top:0;">Ce que vous obtenez concrètement</h3>
+            <p style="margin:0 0 14px;color:rgba(71,85,105,.95);font-weight:560;">Un document utilisable pour exécuter. Pas un rapport « inspiration ». Vous savez quoi faire lundi matin.</p>
+            <div class="grid-3" style="grid-template-columns:1fr 1fr; gap:12px;">
+              <div class="card" style="padding:14px; box-shadow:none;">
+                <h3 style="font-size:0.95rem;margin:0 0 6px;">Priorités</h3>
+                <p style="margin:0;">Top 5 actions</p>
+              </div>
+              <div class="card" style="padding:14px; box-shadow:none;">
+                <h3 style="font-size:0.95rem;margin:0 0 6px;">Automatisations</h3>
+                <p style="margin:0;">Workflows</p>
+              </div>
+              <div class="card" style="padding:14px; box-shadow:none;">
+                <h3 style="font-size:0.95rem;margin:0 0 6px;">Mesures</h3>
+                <p style="margin:0;">KPI & suivi</p>
+              </div>
+              <div class="card" style="padding:14px; box-shadow:none;">
+                <h3 style="font-size:0.95rem;margin:0 0 6px;">Scope</h3>
+                <p style="margin:0;">Ce qu’on fait / pas</p>
+              </div>
+            </div>
+            <p style="margin:14px 0 0;color:rgba(71,85,105,.95);font-weight:560;">Option: accompagnement d’implémentation sur devis.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="section" id="faq" aria-label="FAQ">
+      <div class="container">
+        <div class="section-head">
+          <span class="badge">FAQ</span>
+          <h2>FAQ.</h2>
+          <p>Les questions qui reviennent avant de démarrer.</p>
+        </div>
+
+        <div style="max-width: 920px; margin: 0 auto;">
+          <details class="faq">
+            <summary class="faq-q"><span>Est-ce que l’audit est adapté à une petite structure?</span><span class="faq-icon" aria-hidden="true">+</span></summary>
+            <div class="faq-a"><p>Oui, c’est précisément le cas. L’objectif est de récupérer du temps avec des cas d’usage simples, sans ajouter de complexité ni de risque.</p></div>
+          </details>
+
+          <details class="faq">
+            <summary class="faq-q"><span>Faut-il déjà utiliser des outils IA?</span><span class="faq-icon" aria-hidden="true">+</span></summary>
+            <div class="faq-a"><p>Non. On part de vos process actuels. L’audit sert à décider quoi introduire, où, et avec quels garde-fous.</p></div>
+          </details>
+
+          <details class="faq">
+            <summary class="faq-q"><span>Combien de temps faut-il prévoir?</span><span class="faq-icon" aria-hidden="true">+</span></summary>
+            <div class="faq-a"><p>1 visio de cadrage (45-60 min), collecte d’info légère, puis une restitution. Le reste est traité en asynchrone.</p></div>
+          </details>
+
+          <details class="faq">
+            <summary class="faq-q"><span>Comment se passe la restitution?</span><span class="faq-icon" aria-hidden="true">+</span></summary>
+            <div class="faq-a"><p>On passe le plan ensemble, on challenge les priorités, et vous repartez avec une roadmap et des KPI. Ensuite vous exécutez, ou on vous accompagne.</p></div>
+          </details>
+
+          <details class="faq">
+            <summary class="faq-q"><span>Proposez-vous l’implémentation?</span><span class="faq-icon" aria-hidden="true">+</span></summary>
+            <div class="faq-a"><p>Oui, optionnel. L’audit est un livrable autonome. Si vous voulez aller plus vite, on peut implémenter avec vous.</p></div>
+          </details>
+
+          <details class="faq">
+            <summary class="faq-q"><span>À quoi ressemble la confidentialité?</span><span class="faq-icon" aria-hidden="true">+</span></summary>
+            <div class="faq-a"><p>On minimise les données partagées, on anonymise quand c’est possible, et on documente les exigences RGPD/sécurité dans le plan.</p></div>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- ABOUT -->
+    <section class="section alt" id="about" aria-label="À propos">
+      <div class="container section-inner">
+        <div class="section-head">
+          <span class="badge">À propos</span>
+          <h2>À propos.</h2>
+          <p>Ce bloc est volontairement sobre. Ajoutez votre bio, votre expérience, et vos preuves. Sans preuve, c’est du marketing vide.</p>
+        </div>
+
+        <div class="two-col">
+          <div class="card">
+            <h3 style="margin-top:0;">Expérience</h3>
+            <p>Indiquez votre crédibilité: projets livrés, secteurs, taille d’équipes, cas d’usage. Soyez concret.</p>
+          </div>
+          <div class="card">
+            <h3 style="margin-top:0;">Objectif</h3>
+            <p>Récupérer du temps et de la marge, en mettant l’IA là où elle réduit le frottement, sans augmenter le risque opérationnel.</p>
+          </div>
+        </div>
+
+        <div class="cta-row" style="margin-top:26px;">
+          <a class="btn btn-primary" href="#get-started">Prendre un diagnostic</a>
+          <a class="btn btn-secondary" href="#pricing">Voir le prix</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container">
+      <div class="footer-inner">
+        <div class="brand" style="color:#fff;">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span>L’audit IA</span>
+        </div>
+        <nav class="footer-links" aria-label="Liens de pied de page">
+          <a href="#benefits">Bénéfices</a>
+          <a href="#process">Méthode</a>
+          <a href="#pricing">Tarification</a>
+          <a href="#faq">FAQ</a>
+          <a href="#">Confidentialité</a>
+          <a href="#">Mentions légales</a>
+        </nav>
+        <div style="font-size:14px; font-weight:600;">© <span id="year"></span> L’audit IA</div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Minimal JS: mobile nav toggle + footer year + FAQ icon sync.
+    (function () {
+      var btn = document.getElementById('menuBtn');
+      var nav = document.getElementById('mobileNav');
+      if (btn && nav) {
+        btn.addEventListener('click', function () {
+          var open = nav.classList.toggle('is-open');
+          btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        });
+      }
+
+      var y = document.getElementById('year');
+      if (y) y.textContent = String(new Date().getFullYear());
+
+      document.querySelectorAll('details.faq').forEach(function (d) {
+        var icon = d.querySelector('.faq-icon');
+        if (!icon) return;
+        var sync = function () { icon.textContent = d.open ? '×' : '+'; };
+        sync();
+        d.addEventListener('toggle', sync);
+      });
+    })();
+  </script>
 </body>
 </html>
