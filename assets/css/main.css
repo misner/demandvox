@@ -85,7 +85,7 @@ body {
 
 /* Sidebar: icon above label, narrow column */
 .sidebar {
-  position:fixed;
+  position:sticky;
   inset-block:0;
   inset-inline-start:0;
   width: var(--sidebar-width);
@@ -336,6 +336,7 @@ body {
 
   /* Sidebar becomes off-canvas and wider */
   .sidebar {
+    position: fixed;
     width: 220px;
     align-items: stretch;
     padding-inline: 5px;
